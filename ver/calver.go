@@ -8,8 +8,8 @@ import (
 
 type CalVer struct {
 	Format   *Format
-	Minor    int16
-	Micro    int16
+	Minor    int
+	Micro    int
 	Modifier string
 	microSet bool
 	minorSet bool
@@ -36,10 +36,10 @@ func (f *Format) Version(t time.Time) string {
 	if f.Major != segmentEmpty {
 		bits = append(bits, f.Major.conv(t))
 	}
-	if f.Minor != segmentEmpty {
+	if f.Minor != segmentEmpty && f.Minor != segmentMinor {
 		bits = append(bits, f.Minor.conv(t))
 	}
-	if f.Micro != segmentEmpty {
+	if f.Micro != segmentEmpty && f.Micro != segmentMicro {
 		bits = append(bits, f.Micro.conv(t))
 	}
 
@@ -47,11 +47,11 @@ func (f *Format) Version(t time.Time) string {
 }
 
 func (f *Format) NeedsMinor() bool {
-	return f.Minor != segmentMinor
+	return f.Minor == segmentMinor
 }
 
 func (f *Format) NeedsMicro() bool {
-	return f.Micro != segmentMicro
+	return f.Micro == segmentMicro
 }
 
 const (
@@ -204,6 +204,10 @@ func (s segment) conv(t time.Time) string {
 			return strings.TrimPrefix(y, "0")
 		}
 		return y
+	case segmentMinor:
+		return ""
+	case segmentMicro:
+		return ""
 	default:
 		return t.Format(s.pattern())
 	}
@@ -238,13 +242,13 @@ func NewFormat(raw string) (*Format, error) {
 
 type CalVerArgs struct {
 	Format   string
-	Minor    *int16
-	Micro    *int16
+	Minor    *int
+	Micro    *int
 	Modifier string
 }
 
 func (c *CalVerArgs) String() string {
-	return fmt.Sprintf("%s.%d.%d-%s", c.Format, c.Minor, c.Micro, c.Modifier)
+	return fmt.Sprintf("%s-%s", c.Format, c.Modifier)
 }
 
 func NewCalVer(a CalVerArgs) (*CalVer, error) {

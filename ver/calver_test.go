@@ -158,9 +158,9 @@ func TestFormatVersion(t *testing.T) {
 }
 
 func TestCalVerVersion(t *testing.T) {
-	one := int16(1)
-	twelve := int16(12)
-	random := int16(420)
+	seventeen := 17
+	eightyNine := 89
+	fourTwenty := 420
 
 	tests := []struct {
 		args      CalVerArgs
@@ -180,22 +180,22 @@ func TestCalVerVersion(t *testing.T) {
 				Format:   "YY.MM.DD",
 				Modifier: "TEST",
 			},
-			out:       "2020.1.1-TEST",
+			out:       "20.1.1-TEST",
 			timestamp: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
 		},
 		{
 			args: CalVerArgs{
-				Format:   "YY.MM",
+				Format:   "YY.0M",
 				Modifier: "TEST",
 			},
-			out:       "2020.1-TEST",
+			out:       "20.01-TEST",
 			timestamp: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
 		},
 		{
 			args: CalVerArgs{
 				Format: "0Y.0M",
 			},
-			out:       "01.01-TEST",
+			out:       "01.01",
 			timestamp: time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC),
 		},
 		{
@@ -203,26 +203,61 @@ func TestCalVerVersion(t *testing.T) {
 				Format:   "0Y.0M",
 				Modifier: "RC",
 			},
-			out:       "01.01-TEST",
+			out:       "01.01-RC",
 			timestamp: time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC),
 		},
 		{
 			args: CalVerArgs{
 				Format: "YYYY.MINOR.MICRO",
-				Minor:  &one,
-				Micro:  &twelve,
+				Minor:  &seventeen,
+				Micro:  &eightyNine,
 			},
-			out:       "2024.1.12",
+			out:       "2024.17.89",
 			timestamp: time.Date(2024, 5, 1, 0, 0, 0, 0, time.UTC),
 		},
 		{
 			args: CalVerArgs{
 				Format: "YYYY.MINOR",
-				Minor:  &random,
-				Micro:  &twelve,
+				Minor:  &fourTwenty,
+				Micro:  &eightyNine,
 			},
 			out:       "2024.420",
 			timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			args: CalVerArgs{
+				Format: "",
+			},
+			timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			errMsg:    "requires min 2 segments in format",
+		},
+		{
+			args: CalVerArgs{
+				Format: "BING.BONG.BANG",
+			},
+			timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			errMsg:    "invalid format segment",
+		},
+		{
+			args: CalVerArgs{
+				Format: "YY.MM.BANG",
+			},
+			timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			errMsg:    "invalid format segment",
+		},
+		{
+			args: CalVerArgs{
+				Format: "YY.MM.MICRO",
+			},
+			timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			errMsg:    "micro version required for format",
+		},
+		{
+			args: CalVerArgs{
+				Format: "YY.MINOR.MICRO",
+			},
+			timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			errMsg:    "micro version required for format",
 		},
 	}
 
@@ -230,7 +265,7 @@ func TestCalVerVersion(t *testing.T) {
 		t.Run(fmt.Sprintf("%s -> %s", test.args.String(), test.out), func(t *testing.T) {
 			cv, err := NewCalVer(test.args)
 			if err != nil {
-				assert.Error(t, err, test.errMsg)
+				assert.ErrorContains(t, err, test.errMsg)
 				return
 			}
 
