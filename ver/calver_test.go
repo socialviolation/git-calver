@@ -158,9 +158,9 @@ func TestFormatVersion(t *testing.T) {
 }
 
 func TestCalVerVersion(t *testing.T) {
-	seventeen := 17
-	eightyNine := 89
-	fourTwenty := 420
+	seventeen := uint(17)
+	eightyNine := uint(89)
+	fourTwenty := uint(420)
 
 	tests := []struct {
 		args      CalVerArgs
@@ -170,91 +170,91 @@ func TestCalVerVersion(t *testing.T) {
 	}{
 		{
 			args: CalVerArgs{
-				Format: "YYYY.MM.DD",
+				RawFormat: "YYYY.MM.DD",
 			},
 			out:       "2020.1.1",
 			timestamp: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
 		},
 		{
 			args: CalVerArgs{
-				Format:   "YY.MM.DD",
-				Modifier: "TEST",
+				RawFormat: "YY.MM.DD",
+				Modifier:  "TEST",
 			},
 			out:       "20.1.1-TEST",
 			timestamp: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
 		},
 		{
 			args: CalVerArgs{
-				Format:   "YY.0M",
-				Modifier: "TEST",
+				RawFormat: "YY.0M",
+				Modifier:  "TEST",
 			},
 			out:       "20.01-TEST",
 			timestamp: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
 		},
 		{
 			args: CalVerArgs{
-				Format: "0Y.0M",
+				RawFormat: "0Y.0M",
 			},
 			out:       "01.01",
 			timestamp: time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC),
 		},
 		{
 			args: CalVerArgs{
-				Format:   "0Y.0M",
-				Modifier: "RC",
+				RawFormat: "0Y.0M",
+				Modifier:  "RC",
 			},
 			out:       "01.01-RC",
 			timestamp: time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC),
 		},
 		{
 			args: CalVerArgs{
-				Format: "YYYY.MINOR.MICRO",
-				Minor:  &seventeen,
-				Micro:  &eightyNine,
+				RawFormat: "YYYY.MINOR.MICRO",
+				Minor:     &seventeen,
+				Micro:     &eightyNine,
 			},
 			out:       "2024.17.89",
 			timestamp: time.Date(2024, 5, 1, 0, 0, 0, 0, time.UTC),
 		},
 		{
 			args: CalVerArgs{
-				Format: "YYYY.MINOR",
-				Minor:  &fourTwenty,
-				Micro:  &eightyNine,
+				RawFormat: "YYYY.MINOR",
+				Minor:     &fourTwenty,
+				Micro:     &eightyNine,
 			},
 			out:       "2024.420",
 			timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 		},
 		{
 			args: CalVerArgs{
-				Format: "",
+				RawFormat: "",
 			},
 			timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 			errMsg:    "requires min 2 segments in format",
 		},
 		{
 			args: CalVerArgs{
-				Format: "BING.BONG.BANG",
+				RawFormat: "BING.BONG.BANG",
 			},
 			timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 			errMsg:    "invalid format segment",
 		},
 		{
 			args: CalVerArgs{
-				Format: "YY.MM.BANG",
+				RawFormat: "YY.MM.BANG",
 			},
 			timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 			errMsg:    "invalid format segment",
 		},
 		{
 			args: CalVerArgs{
-				Format: "YY.MM.MICRO",
+				RawFormat: "YY.MM.MICRO",
 			},
 			timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 			errMsg:    "micro version required for format",
 		},
 		{
 			args: CalVerArgs{
-				Format: "YY.MINOR.MICRO",
+				RawFormat: "YY.MINOR.MICRO",
 			},
 			timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 			errMsg:    "micro version required for format",

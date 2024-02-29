@@ -15,7 +15,11 @@ var listTagCommand = &cobra.Command{
 		tags, err := git.List(f)
 		CheckIfError(err)
 
-		fmt.Printf("found tags: %d\n", len(tags))
+		if len(tags) == 0 {
+			fmt.Printf("No tags found.\n")
+			return
+		}
+
 		idx, err := fuzzyfinder.Find(tags, func(i int) string {
 			return tags[i].Short
 		}, fuzzyfinder.WithPreviewWindow(func(i, w, h int) string {
@@ -25,11 +29,14 @@ var listTagCommand = &cobra.Command{
 			return fmt.Sprintf(`Ref: %s
 IsBranch: %t
 Hash: %s
-Commit: %s
+Author: %s
+Message: %s
 `,
 				tags[i].Ref,
 				tags[i].IsBranch,
 				tags[i].Hash,
+				tags[i].Commit.Author,
+				tags[i].Commit.Message,
 			)
 		}))
 

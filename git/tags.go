@@ -7,14 +7,20 @@ import (
 	"github.com/socialviolation/git-calver/ver"
 )
 
-type TagRef struct {
+type Tag struct {
 	Short    string
 	Ref      string
 	Hash     string
 	IsBranch bool
+	Commit   Commit
 }
 
-func List(format *ver.Format) ([]TagRef, error) {
+type Commit struct {
+	Message string
+	Author  string
+}
+
+func List(format *ver.Format) ([]Tag, error) {
 	r, err := git.PlainOpen(".")
 	if err != nil {
 		return nil, fmt.Errorf("could not init repo at .: %w", err)
@@ -23,14 +29,20 @@ func List(format *ver.Format) ([]TagRef, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not find tags: %w", err)
 	}
-	tags := make([]TagRef, 0)
+	tags := make([]Tag, 0)
 	err = refs.ForEach(func(ref *plumbing.Reference) error {
 		if ref.Name().IsTag() {
-			tags = append(tags, TagRef{
+			co, _ := r.CommitObject(ref.Hash())
+
+			tags = append(tags, Tag{
 				Short:    ref.Name().Short(),
 				Ref:      ref.String(),
 				Hash:     ref.Hash().String(),
 				IsBranch: ref.Name().IsBranch(),
+				Commit: Commit{
+					Message: co.Message,
+					Author:  co.Author.String(),
+				},
 			})
 		}
 		return nil

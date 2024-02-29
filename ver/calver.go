@@ -241,25 +241,31 @@ func NewFormat(raw string) (*Format, error) {
 }
 
 type CalVerArgs struct {
-	Format   string
-	Minor    *uint
-	Micro    *uint
-	Modifier string
+	Format    *Format
+	RawFormat string
+	Minor     *uint
+	Micro     *uint
+	Modifier  string
+	DryRun    bool
 }
 
 func (c *CalVerArgs) String() string {
-	return fmt.Sprintf("%s-%s", c.Format, c.Modifier)
+	return fmt.Sprintf("%s-%s", c.RawFormat, c.Modifier)
 }
 
 func NewCalVer(a CalVerArgs) (*CalVer, error) {
-	f, err := NewFormat(a.Format)
-	if err != nil {
-		return nil, err
-	}
 
 	c := &CalVer{
-		Format:   f,
+		Format:   a.Format,
 		Modifier: a.Modifier,
+	}
+
+	if c.Format == nil {
+		cf, err := NewFormat(a.RawFormat)
+		if err != nil {
+			return nil, err
+		}
+		c.Format = cf
 	}
 
 	if a.Micro != nil {
