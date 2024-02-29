@@ -2,6 +2,7 @@ package ver
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -44,6 +45,19 @@ func (f *Format) Version(t time.Time) string {
 	}
 
 	return strings.Join(bits, ".")
+}
+
+func (f *Format) Regex() *regexp.Regexp {
+	if f.Minor == segmentEmpty {
+		r, _ := regexp.Compile(fmt.Sprintf("%s", f.Major.Regex()))
+		return r
+	}
+	if f.Micro == segmentEmpty {
+		r, _ := regexp.Compile(fmt.Sprintf("%s\\.%s", f.Major.Regex(), f.Minor.Regex()))
+		return r
+	}
+	r, _ := regexp.Compile(fmt.Sprintf("%s\\.%s\\.%s", f.Major.Regex(), f.Minor.Regex(), f.Micro.Regex()))
+	return r
 }
 
 func (f *Format) NeedsMinor() bool {
@@ -129,6 +143,37 @@ func (s segment) String() string {
 		return ShortDay
 	case segmentPaddedDay:
 		return PaddedDay
+	case segmentMinor:
+		return Minor
+	case segmentMicro:
+		return Micro
+	case segmentEmpty:
+		return ""
+	default:
+		panic("invalid format segment")
+	}
+}
+
+func (s segment) Regex() string {
+	switch s {
+	case segmentFullYear:
+		return "20[0-9]{2}"
+	case segmentShortYear:
+		return "[0-9]{2}"
+	case segmentPaddedYear:
+		return "[0-9]{1,2}"
+	case segmentShortMonth:
+		return "[0-9]{1,2}"
+	case segmentPaddedMonth:
+		return "[0-9]{2}"
+	case segmentShortWeek:
+		return "[0-9]{1,2}"
+	case segmentPaddedWeek:
+		return "[0-9]{2}"
+	case segmentShortDay:
+		return "[0-9]{1,2}"
+	case segmentPaddedDay:
+		return "[0-9]{2}"
 	case segmentMinor:
 		return Minor
 	case segmentMicro:
@@ -254,7 +299,6 @@ func (c *CalVerArgs) String() string {
 }
 
 func NewCalVer(a CalVerArgs) (*CalVer, error) {
-
 	c := &CalVer{
 		Format:   a.Format,
 		Modifier: a.Modifier,

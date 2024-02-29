@@ -86,7 +86,7 @@ func getFormat() (*ver.Format, string, error) {
 		return f, "argument", nil
 	}
 
-	envVar := os.Getenv("CALVAR")
+	envVar := os.Getenv("CALVER")
 	if envVar != "" {
 		f, err := ver.NewFormat(envVar)
 		if err != nil {

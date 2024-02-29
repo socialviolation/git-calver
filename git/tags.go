@@ -25,15 +25,21 @@ func List(format *ver.Format) ([]Tag, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not init repo at .: %w", err)
 	}
+
 	refs, err := r.Tags()
 	if err != nil {
 		return nil, fmt.Errorf("could not find tags: %w", err)
 	}
 	tags := make([]Tag, 0)
+	regex := format.Regex()
 	err = refs.ForEach(func(ref *plumbing.Reference) error {
 		if ref.Name().IsTag() {
-			co, _ := r.CommitObject(ref.Hash())
+			short := ref.Name().Short()
+			if !regex.Match([]byte(short)) {
+				return nil
+			}
 
+			co, _ := r.CommitObject(ref.Hash())
 			tags = append(tags, Tag{
 				Short:    ref.Name().Short(),
 				Ref:      ref.String(),
