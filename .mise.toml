@@ -1,11 +1,18 @@
-#[env]
-#_.file = '.envrc'
+[env]
+BINARY="git-calver"
+
+[tools]
+go = "1.22.0"
+
+[settings]
+experimental = true
+not_found_auto_install = true
 
 [tasks.build]
 description = 'Build the CLI'
 run = """
 #!/usr/bin/env bash
-echo "Building bin/git-calver"
-go build -o bin/git-calver main.go
+echo "Building bin/${BINARY}"
+go build -o bin/${BINARY} main.go
 """
 alias = 'b'

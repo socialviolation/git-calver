@@ -8,8 +8,8 @@ import (
 
 type CalVer struct {
 	Format   *Format
-	Minor    int
-	Micro    int
+	Minor    uint
+	Micro    uint
 	Modifier string
 	microSet bool
 	minorSet bool
@@ -242,8 +242,8 @@ func NewFormat(raw string) (*Format, error) {
 
 type CalVerArgs struct {
 	Format   string
-	Minor    *int
-	Micro    *int
+	Minor    *uint
+	Micro    *uint
 	Modifier string
 }
 
