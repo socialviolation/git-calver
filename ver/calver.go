@@ -296,3 +296,7 @@ func (c *CalVer) Version(t time.Time) (string, error) {
 
 	return ver, nil
 }
+
+//func ParseRaw(raw string, fmt string) (*CalVer, error) {
+//
+//}

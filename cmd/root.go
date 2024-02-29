@@ -1,7 +1,10 @@
 package cmd
 
 import (
+	"fmt"
+	"github.com/socialviolation/git-calver/ver"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -10,7 +13,14 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "git-calver",
 	Short: "CalVer is a git subcommand for managing a calendar versioning tag scheme.",
-	Run:   func(cmd *cobra.Command, args []string) {},
+	Run: func(cmd *cobra.Command, args []string) {
+		f, err := ver.NewCalVer(ver.CalVerArgs{Format: "YYYY.MM"})
+		if err != nil {
+			panic(err)
+		}
+		v, _ := f.Version(time.Now())
+		fmt.Println(v)
+	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

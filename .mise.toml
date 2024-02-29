@@ -1,0 +1,11 @@
+#[env]
+#_.file = '.envrc'
+
+[tasks.build]
+description = 'Build the CLI'
+run = """
+#!/usr/bin/env bash
+echo "Building bin/git-calver"
+go build -o bin/git-calver main.go
+"""
+alias = 'b'
