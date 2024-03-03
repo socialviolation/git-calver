@@ -26,17 +26,8 @@ var listTagCommand = &cobra.Command{
 			if i == -1 {
 				return ""
 			}
-			return fmt.Sprintf(`Ref: %s
-IsBranch: %t
-Hash: %s
-Author: %s
-Message: %s
-`,
-				tags[i].Ref,
-				tags[i].IsBranch,
-				tags[i].Hash,
-				tags[i].Commit.Author,
-				tags[i].Commit.Message,
+			return fmt.Sprintf(`%s`,
+				tags[i].FullMessage,
 			)
 		}))
 
@@ -45,7 +36,7 @@ Message: %s
 			return
 		}
 
-		fmt.Printf("You selected %d - %s", idx, tags[idx].Short)
+		fmt.Printf("You selected %d - %s\n", idx, tags[idx].Short)
 	},
 }
 

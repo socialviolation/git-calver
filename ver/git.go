@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"time"
 )
 
 func GetRepoFormat() (*Format, error) {
@@ -79,11 +80,15 @@ func ListTags(format *Format) ([]Tag, error) {
 			}
 
 			co, _ := r.CommitObject(ref.Hash())
+			li, _ := r.Log(&git.LogOptions{From: ref.Hash()})
+			log, _ := li.Next()
 			tags = append(tags, Tag{
-				Short:    ref.Name().Short(),
-				Ref:      ref.String(),
-				Hash:     ref.Hash().String(),
-				IsBranch: ref.Name().IsBranch(),
+				Short:       ref.Name().Short(),
+				Ref:         ref.String(),
+				Hash:        ref.Hash().String(),
+				IsBranch:    ref.Name().IsBranch(),
+				Time:        co.Committer.When,
+				FullMessage: log.String(),
 				Commit: Commit{
 					Message: co.Message,
 					Author:  co.Author.String(),
@@ -100,11 +105,13 @@ func ListTags(format *Format) ([]Tag, error) {
 }
 
 type Tag struct {
-	Short    string
-	Ref      string
-	Hash     string
-	IsBranch bool
-	Commit   Commit
+	Short       string
+	Ref         string
+	Hash        string
+	IsBranch    bool
+	Commit      Commit
+	Time        time.Time
+	FullMessage string
 }
 
 type Commit struct {
