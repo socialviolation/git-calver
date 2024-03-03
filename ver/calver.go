@@ -49,14 +49,14 @@ func (f *Format) Version(t time.Time) string {
 
 func (f *Format) Regex() *regexp.Regexp {
 	if f.Minor == segmentEmpty {
-		r, _ := regexp.Compile(fmt.Sprintf("%s", f.Major.Regex()))
+		r, _ := regexp.Compile(fmt.Sprintf("^%s(-\\w){0,1}$", f.Major.Regex()))
 		return r
 	}
 	if f.Micro == segmentEmpty {
-		r, _ := regexp.Compile(fmt.Sprintf("%s\\.%s", f.Major.Regex(), f.Minor.Regex()))
+		r, _ := regexp.Compile(fmt.Sprintf(`^%s\.%s(-\w){0,1}$`, f.Major.Regex(), f.Minor.Regex()))
 		return r
 	}
-	r, _ := regexp.Compile(fmt.Sprintf("%s\\.%s\\.%s", f.Major.Regex(), f.Minor.Regex(), f.Micro.Regex()))
+	r, _ := regexp.Compile(fmt.Sprintf(`^%s\.%s\.%s(-\w){0,1}$`, f.Major.Regex(), f.Minor.Regex(), f.Micro.Regex()))
 	return r
 }
 

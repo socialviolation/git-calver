@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"github.com/fatih/color"
-	"github.com/socialviolation/git-calver/git"
 	"github.com/socialviolation/git-calver/ver"
 	"os"
 	"time"
@@ -96,7 +95,7 @@ func getFormat() (*ver.Format, string, error) {
 		return f, "environment", nil
 	}
 
-	gitConf, err := git.GetFormat()
+	gitConf, err := ver.GetRepoFormat()
 	if err != nil {
 		if err.Error() == "[calver] not set" {
 			return nil, "gitconfig", fmt.Errorf("format not set")

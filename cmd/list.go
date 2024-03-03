@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 	"github.com/ktr0731/go-fuzzyfinder"
-	"github.com/socialviolation/git-calver/git"
+	"github.com/socialviolation/git-calver/ver"
 	"github.com/spf13/cobra"
 )
 
@@ -12,7 +12,7 @@ var listTagCommand = &cobra.Command{
 	Short: "Will list all CalVer tags matching the provided format",
 	Run: func(cmd *cobra.Command, args []string) {
 		f := loadFormat()
-		tags, err := git.List(f)
+		tags, err := ver.ListTags(f)
 		CheckIfError(err)
 
 		if len(tags) == 0 {
