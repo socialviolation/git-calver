@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"sort"
 	"time"
 )
 
@@ -101,6 +102,9 @@ func ListTags(format *Format) ([]Tag, error) {
 		return nil, err
 	}
 
+	sort.Slice(tags, func(i, j int) bool {
+		return tags[j].Time.Before(tags[i].Time)
+	})
 	return tags, nil
 }
 

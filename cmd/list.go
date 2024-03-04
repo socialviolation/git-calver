@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/ktr0731/go-fuzzyfinder"
 	"github.com/socialviolation/git-calver/ver"
 	"github.com/spf13/cobra"
 )
@@ -20,7 +19,18 @@ var listTagCommand = &cobra.Command{
 			return
 		}
 
-		idx, err := fuzzyfinder.Find(tags, func(i int) string {
+		for _, tag := range tags {
+			fmt.Printf("%s (%s)\n", tag.Short, tag.Time.Format("15:04 2006-01-02"))
+		}
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(listTagCommand)
+}
+
+/*
+idx, err := fuzzyfinder.Find(tags, func(i int) string {
 			return tags[i].Short
 		}, fuzzyfinder.WithPreviewWindow(func(i, w, h int) string {
 			if i == -1 {
@@ -37,9 +47,4 @@ var listTagCommand = &cobra.Command{
 		}
 
 		fmt.Printf("You selected %d - %s\n", idx, tags[idx].Short)
-	},
-}
-
-func init() {
-	rootCmd.AddCommand(listTagCommand)
-}
+*/
