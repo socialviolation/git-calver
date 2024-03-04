@@ -37,6 +37,29 @@ var rootCmd = &cobra.Command{
 	},
 }
 
+var tagCmd = &cobra.Command{
+	Use:   "tag",
+	Short: "tag",
+	Run: func(cmd *cobra.Command, args []string) {
+		cf := loadFormat()
+		f, err := ver.NewCalVer(
+			ver.CalVerArgs{
+				Format:   cf,
+				Micro:    &micro,
+				Minor:    &minor,
+				Modifier: modifier,
+			})
+		CheckIfError(err)
+		v, _ := f.Version(time.Now())
+		fmt.Println(v)
+		err = ver.TagNext(*f, "")
+		if err != nil {
+			fmt.Println(color.RedString("error: %s", err))
+			os.Exit(1)
+		}
+	},
+}
+
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
@@ -50,6 +73,8 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&modifier, "modifier", "", "Modifer (eg. DEV, RC, etc)")
 	rootCmd.PersistentFlags().UintVar(&minor, "minor", 0, "Minor Version")
 	rootCmd.PersistentFlags().UintVar(&micro, "micro", 0, "Micro Version")
+
+	rootCmd.AddCommand(tagCmd)
 }
 
 // CheckIfError should be used to naively panics if an error is not nil.
