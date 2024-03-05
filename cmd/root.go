@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/fatih/color"
+	colour "github.com/gookit/color"
 	"github.com/socialviolation/git-calver/ver"
 	"os"
 	"time"
@@ -54,7 +54,7 @@ var tagCmd = &cobra.Command{
 		fmt.Println(v)
 		err = ver.TagNext(*f, "")
 		if err != nil {
-			fmt.Println(color.RedString("error: %s", err))
+			colour.Red.Println("error: %s", err)
 			os.Exit(1)
 		}
 	},
@@ -82,7 +82,7 @@ func CheckIfError(err error) {
 	if err == nil {
 		return
 	}
-	fmt.Printf(color.RedString("error: %s", err))
+	colour.Red.Println("error: %s", err)
 	os.Exit(1)
 }
 
@@ -90,13 +90,12 @@ func loadFormat() *ver.Format {
 	f, source, err := getFormat()
 	if err != nil {
 		if err.Error() == "format not set" {
-			fmt.Println(color.RedString("format not set, please set with --format or CALVER environment variable or git config"))
+			colour.Red.Println("format not set, please set with --format or CALVER environment variable or git config")
 			os.Exit(1)
 		}
-		fmt.Println(color.RedString("loading from %s error: %s", source, err))
+		colour.Red.Println("loading from %s error: %s", source, err)
 		os.Exit(1)
 	}
-	//fmt.Printf("loaded %s from %s\n", f.String(), source)
 	return f
 }
 
