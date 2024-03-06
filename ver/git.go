@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -201,13 +202,17 @@ func VerifyHash(hash string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("cannot get HEAD: %w", err)
 		}
-		return head.Hash().String()[:7], nil
+		return head.Hash().String(), nil
+	} else if len(hash) < 8 {
+		co, _ := findShortHash(r, hash)
+		hash = co.Hash.String()
 	}
+
 	co, err := r.CommitObject(plumbing.NewHash(hash))
 	if err != nil {
 		return "", fmt.Errorf("cannot find hash %s", hash)
 	}
-	return co.Hash.String()[:7], nil
+	return co.Hash.String(), nil
 }
 
 func TagNext(args TagArgs) (string, error) {
@@ -224,21 +229,23 @@ func TagNext(args TagArgs) (string, error) {
 		}
 	}
 
-	hRaw := plumbing.NewHash(args.Hash)
-	h := &hRaw
-	if h.IsZero() {
-		h, err = r.ResolveRevision("HEAD")
+	var co *object.Commit
+	if args.Hash == "" {
+		h, err := r.ResolveRevision("HEAD")
 		if err != nil {
 			return "", fmt.Errorf("could not resolve HEAD: %w", err)
 		}
-	} else {
-		h, err = r.ResolveRevision(plumbing.Revision(h.String()))
+		co, err = r.CommitObject(*h)
 		if err != nil {
-			return "", fmt.Errorf("could not resolve hash %s: %w", h.String(), err)
+			return "", err
+		}
+	} else {
+		co, err = findShortHash(r, args.Hash)
+		if err != nil {
+			return "", err
 		}
 	}
 
-	co, err := r.CommitObject(*h)
 	created, err := setTag(r, v, co)
 	if err != nil {
 		return "", fmt.Errorf("could not create tag: %w", err)
@@ -247,6 +254,10 @@ func TagNext(args TagArgs) (string, error) {
 	if created && args.Push {
 		err = pushTags(r, v)
 	}
+	if co == nil {
+		return "HEAD", nil
+	}
+
 	return co.Hash.String()[:7], nil
 }
 
@@ -256,10 +267,13 @@ func Retag(args TagArgs) (string, error) {
 		return "", fmt.Errorf("could not init repo at .: %w", err)
 	}
 
+	oldHash := tagHash(args.Tag)
 	err = r.DeleteTag(args.Tag)
 	if err != nil {
-		return "", fmt.Errorf("could not delete tag: %w", err)
+		return "", fmt.Errorf("could not delete tag '%s': %w", args.Tag, err)
 	}
+
+	fmt.Printf("Deleted tag '%s' (hash %s)\n", args.Tag, oldHash[:7])
 
 	return TagNext(args)
 }
@@ -272,6 +286,27 @@ func TagExists(tag string) bool {
 	return tagExists(r, tag)
 }
 
+func findShortHash(r *git.Repository, hash string) (*object.Commit, error) {
+	cos, err := r.CommitObjects()
+	if err != nil {
+		return nil, err
+	}
+
+	var c *object.Commit
+	err = cos.ForEach(func(commit *object.Commit) error {
+		if strings.HasPrefix(commit.Hash.String(), hash) {
+			c = commit
+			return fmt.Errorf("found")
+		}
+		return nil
+	})
+	if err != nil && err.Error() != "found" {
+		return nil, err
+	}
+
+	return c, nil
+}
+
 func getCommitByTag(r *git.Repository, tag string) (*object.Commit, error) {
 	rev, _ := r.ResolveRevision(plumbing.Revision(tag))
 	co, err := r.CommitObject(plumbing.NewHash(rev.String()))
@@ -281,7 +316,7 @@ func getCommitByTag(r *git.Repository, tag string) (*object.Commit, error) {
 	return co, nil
 }
 
-func TagHash(tag string) string {
+func tagHash(tag string) string {
 	r, err := git.PlainOpen(".")
 	if err != nil {
 		return ""
@@ -295,26 +330,26 @@ func TagHash(tag string) string {
 	if err != nil {
 		return ""
 	}
-	return co.Hash.String()[:7]
+	return co.Hash.String()
 }
 
 func tagExists(r *git.Repository, tag string) bool {
 	tagFoundErr := "tag was found"
-	tags, err := r.TagObjects()
+	tags, err := r.Tags()
 	if err != nil {
 		log.Printf("get printTags error: %s", err)
 		return false
 	}
 	res := false
-	err = tags.ForEach(func(t *object.Tag) error {
-		if t.Name == tag {
+	err = tags.ForEach(func(t *plumbing.Reference) error {
+		if t.Name().Short() == tag {
 			res = true
 			return fmt.Errorf(tagFoundErr)
 		}
 		return nil
 	})
 	if err != nil && err.Error() != tagFoundErr {
-		log.Printf("iterate printTags error: %s", err)
+		fmt.Printf("iterate printTags error: %s", err)
 		return false
 	}
 	return res
@@ -322,22 +357,29 @@ func tagExists(r *git.Repository, tag string) bool {
 
 func setTag(r *git.Repository, tag string, co *object.Commit) (bool, error) {
 	if tagExists(r, tag) {
-		log.Printf("tag %s already exists", tag)
+		fmt.Printf("tag %s already exists\n", tag)
 		return false, nil
 	}
-	h, err := r.Head()
-	if err != nil {
-		log.Printf("get HEAD error: %s", err)
-		return false, err
+	if co == nil {
+		h, err := r.Head()
+		if err != nil {
+			fmt.Printf("get HEAD error: %s", err)
+			return false, err
+		}
+		co, err = findShortHash(r, h.Hash().String())
+		if err != nil {
+			fmt.Printf("get hash (%s) error: %s", h.Hash(), err)
+			return false, err
+		}
 	}
 
-	_, err = r.CreateTag(tag, h.Hash(), &git.CreateTagOptions{
+	_, err := r.CreateTag(tag, co.Hash, &git.CreateTagOptions{
 		Tagger:  &co.Author,
 		Message: tag,
 	})
 
 	if err != nil {
-		log.Printf("create tag error: %s", err)
+		fmt.Printf("create tag error: %s\n", err)
 		return false, err
 	}
 

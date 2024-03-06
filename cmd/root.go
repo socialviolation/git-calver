@@ -60,7 +60,7 @@ func CheckIfError(err error) {
 	if err == nil {
 		return
 	}
-	colour.Red.Println("error: %s", err)
+	colour.Red.Printf("error: %s\n", err)
 	os.Exit(1)
 }
 
@@ -71,7 +71,7 @@ func loadFormat() *ver.Format {
 			colour.Red.Println("format not set, please set with --format or CALVER environment variable or git config")
 			os.Exit(1)
 		}
-		colour.Red.Println("loading from %s error: %s", source, err)
+		colour.Red.Printf("loading from %s error: %s\n", source, err)
 		os.Exit(1)
 	}
 	return f

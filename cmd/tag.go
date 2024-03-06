@@ -15,7 +15,7 @@ var (
 	changelog bool
 )
 
-var latestTagCommand = &cobra.Command{
+var latestTagCmd = &cobra.Command{
 	Use:   "latest",
 	Short: "Get latest tag matching the provided format",
 	Run: func(cmd *cobra.Command, args []string) {
@@ -52,7 +52,7 @@ var nextTagCommand = &cobra.Command{
 	},
 }
 
-var listTagCommand = &cobra.Command{
+var listTagCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Will list all CalVer tags matching the provided format",
 	Run: func(cmd *cobra.Command, args []string) {
@@ -100,7 +100,17 @@ var tagCmd = &cobra.Command{
 			Tag:  tag,
 		})
 		CheckIfError(err)
-		fmt.Printf("Created tag '%s' (hash %s)", tag, commit)
+		fmt.Printf("Created tag '%s' (hash %s)\n", tag, commit)
+	},
+}
+
+var testCmd = &cobra.Command{
+	Use:   "test",
+	Short: "test",
+	Run: func(cmd *cobra.Command, args []string) {
+		asd, err := ver.VerifyHash(hash)
+		CheckIfError(err)
+		fmt.Println(asd)
 	},
 }
 
@@ -139,25 +149,30 @@ var retagCmd = &cobra.Command{
 			Tag:  tag,
 		})
 		CheckIfError(err)
-		fmt.Printf("Created tag '%s' (hash %s)", tag, commit)
+		fmt.Printf("Created tag '%s' (hash %s)\n", tag, commit)
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(listTagCommand)
-	listTagCommand.Flags().BoolVar(&noColour, "no-colour", false, "Disable colour output")
-	listTagCommand.Flags().BoolVar(&changelog, "changeLog", true, "Include changelog")
-	listTagCommand.Flags().IntVarP(&limit, "limit", "l", 5, "Limit number of results (based on hashes)")
+	rootCmd.AddCommand(listTagCmd)
+	listTagCmd.Flags().BoolVar(&noColour, "no-colour", false, "Disable colour output")
+	listTagCmd.Flags().BoolVar(&changelog, "changeLog", true, "Include changelog")
+	listTagCmd.Flags().IntVarP(&limit, "limit", "l", 5, "Limit number of results (based on hashes)")
 
-	rootCmd.AddCommand(latestTagCommand)
-	latestTagCommand.Flags().BoolVar(&noColour, "no-colour", false, "Disable colour output")
-	latestTagCommand.Flags().BoolVar(&changelog, "changeLog", true, "Include changelog")
+	rootCmd.AddCommand(latestTagCmd)
+	latestTagCmd.Flags().BoolVar(&noColour, "no-colour", false, "Disable colour output")
+	latestTagCmd.Flags().BoolVar(&changelog, "changeLog", true, "Include changelog")
 
 	rootCmd.AddCommand(tagCmd)
 	tagCmd.Flags().BoolVarP(&push, "push", "p", false, "Push tag after create")
 	tagCmd.Flags().StringVar(&hash, "hash", "", "Override Hash")
-	rootCmd.AddCommand(tagCmd)
+	rootCmd.AddCommand(retagCmd)
+	retagCmd.Flags().BoolVarP(&push, "push", "p", false, "Push tag after create")
+	retagCmd.Flags().StringVar(&hash, "hash", "", "Override Hash")
 
 	rootCmd.AddCommand(nextTagCommand)
 	nextTagCommand.Flags().StringVar(&hash, "hash", "HEAD", "Override Hash")
+
+	rootCmd.AddCommand(testCmd)
+	testCmd.Flags().StringVar(&hash, "hash", "HEAD", "Override Hash")
 }
