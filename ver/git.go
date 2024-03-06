@@ -192,15 +192,34 @@ type TagArgs struct {
 	Tag  string
 }
 
-func TagNext(args TagArgs) error {
+func VerifyHash(hash string) (string, error) {
 	r, err := git.PlainOpen(".")
 	if err != nil {
-		return fmt.Errorf("could not init repo at .: %w", err)
+		return "", fmt.Errorf("could not init repo at .: %w", err)
+	}
+	if hash == "" || hash == "HEAD" {
+		head, err := r.Head()
+		if err != nil {
+			return "", fmt.Errorf("cannot get HEAD: %w", err)
+		}
+		return head.Hash().String()[:7], nil
+	}
+	co, err := r.CommitObject(plumbing.NewHash(hash))
+	if err != nil {
+		return "", fmt.Errorf("cannot find hash %s", hash)
+	}
+	return co.Hash.String()[:7], nil
+}
+
+func TagNext(args TagArgs) (string, error) {
+	r, err := git.PlainOpen(".")
+	if err != nil {
+		return "", fmt.Errorf("could not init repo at .: %w", err)
 	}
 
 	v, err := args.CV.Version(time.Now())
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	hRaw := plumbing.NewHash(args.Hash)
@@ -208,25 +227,25 @@ func TagNext(args TagArgs) error {
 	if h.IsZero() {
 		h, err = r.ResolveRevision("HEAD")
 		if err != nil {
-			return fmt.Errorf("could not resolve HEAD: %w", err)
+			return "", fmt.Errorf("could not resolve HEAD: %w", err)
 		}
 	} else {
 		h, err = r.ResolveRevision(plumbing.Revision(h.String()))
 		if err != nil {
-			return fmt.Errorf("could not resolve hash %s: %w", h.String(), err)
+			return "", fmt.Errorf("could not resolve hash %s: %w", h.String(), err)
 		}
 	}
 
 	co, err := r.CommitObject(*h)
 	created, err := setTag(r, v, co)
 	if err != nil {
-		return fmt.Errorf("could not create tag: %w", err)
+		return "", fmt.Errorf("could not create tag: %w", err)
 	}
 
 	if created && args.Push {
 		err = pushTags(r, v)
 	}
-	return nil
+	return co.Hash.String()[:7], nil
 }
 
 //func Retag(ver CalVer, hash string) error {
@@ -251,6 +270,14 @@ func TagNext(args TagArgs) error {
 //	}
 //	return nil
 //}
+
+func TagExists(tag string) bool {
+	r, err := git.PlainOpen(".")
+	if err != nil {
+		return false
+	}
+	return tagExists(r, tag)
+}
 
 func tagExists(r *git.Repository, tag string) bool {
 	tagFoundErr := "tag was found"

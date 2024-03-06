@@ -15,18 +15,6 @@ var (
 	changelog bool
 )
 
-var nextTagCommand = &cobra.Command{
-	Use:   "latest",
-	Short: "Output what the next calver tag will be",
-	Run: func(cmd *cobra.Command, args []string) {
-		f := loadFormat()
-		tag, err := ver.LatestTag(f, changelog)
-		CheckIfError(err)
-
-		fmt.Println(tag)
-	},
-}
-
 var latestTagCommand = &cobra.Command{
 	Use:   "latest",
 	Short: "Get latest tag matching the provided format",
@@ -41,6 +29,26 @@ var latestTagCommand = &cobra.Command{
 		}
 
 		tag.Print(os.Stdout, noColour)
+	},
+}
+
+var nextTagCommand = &cobra.Command{
+	Use:   "next",
+	Short: "Output what the next calver tag will be",
+	Run: func(cmd *cobra.Command, args []string) {
+		f := loadFormat()
+		verifiedHash, err := ver.VerifyHash(hash)
+		CheckIfError(err)
+		tag := f.Version(time.Now())
+		cv := colour.LightGreen.Sprintf(tag)
+
+		exists := ver.TagExists(tag)
+		if exists {
+			fmt.Printf("Tag '%s' already exists\n", cv)
+			return
+		}
+
+		fmt.Printf("Will create tag '%s' (hash %s)", cv, verifiedHash)
 	},
 }
 
@@ -77,8 +85,7 @@ var tagCmd = &cobra.Command{
 			})
 		CheckIfError(err)
 		v, _ := f.Version(time.Now())
-		fmt.Println(v)
-		err = ver.TagNext(ver.TagArgs{
+		commit, err := ver.TagNext(ver.TagArgs{
 			Hash: hash,
 			Push: push,
 			CV:   f,
@@ -87,6 +94,7 @@ var tagCmd = &cobra.Command{
 			colour.Red.Println("error: %s", err)
 			os.Exit(1)
 		}
+		fmt.Printf("Created tag '%s' (hash %s)", v, commit)
 	},
 }
 
@@ -102,7 +110,8 @@ func init() {
 
 	rootCmd.AddCommand(tagCmd)
 	tagCmd.Flags().BoolVarP(&push, "push", "p", false, "Push tag after create")
-	tagCmd.Flags().StringVarP(&hash, "hash", "h", "", "Override with Hash")
+	tagCmd.Flags().StringVar(&hash, "hash", "", "Override Hash")
 
 	rootCmd.AddCommand(nextTagCommand)
+	nextTagCommand.Flags().StringVar(&hash, "hash", "HEAD", "Override Hash")
 }
