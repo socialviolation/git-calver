@@ -66,6 +66,13 @@ func SetRepoFormat(f *Format) error {
 	return nil
 }
 
+type TagArgs struct {
+	CV   *CalVer
+	Hash string
+	Push bool
+	Tag  string
+}
+
 func LatestTag(format *Format, changelog bool) (*CalVerTagGroup, error) {
 	latestList, err := ListTags(format, 1, changelog)
 	if err != nil {
@@ -97,8 +104,7 @@ func ListTags(format *Format, limit int, changelog bool) ([]*CalVerTagGroup, err
 		if !regex.Match([]byte(short)) {
 			return nil
 		}
-		rev, _ := r.ResolveRevision(plumbing.Revision(tag.Name()))
-		co, _ := r.CommitObject(plumbing.NewHash(rev.String()))
+		co, _ := getCommitByTag(r, string(tag.Name()))
 		if co == nil {
 			return nil
 		}
@@ -185,13 +191,6 @@ func ListTags(format *Format, limit int, changelog bool) ([]*CalVerTagGroup, err
 	return results, nil
 }
 
-type TagArgs struct {
-	CV   *CalVer
-	Hash string
-	Push bool
-	Tag  string
-}
-
 func VerifyHash(hash string) (string, error) {
 	r, err := git.PlainOpen(".")
 	if err != nil {
@@ -217,9 +216,12 @@ func TagNext(args TagArgs) (string, error) {
 		return "", fmt.Errorf("could not init repo at .: %w", err)
 	}
 
-	v, err := args.CV.Version(time.Now())
-	if err != nil {
-		return "", err
+	v := args.Tag
+	if v == "" {
+		v, err = args.CV.Version(time.Now())
+		if err != nil {
+			return "", err
+		}
 	}
 
 	hRaw := plumbing.NewHash(args.Hash)
@@ -248,28 +250,19 @@ func TagNext(args TagArgs) (string, error) {
 	return co.Hash.String()[:7], nil
 }
 
-//func Retag(ver CalVer, hash string) error {
-//	r, err := git.PlainOpen(".")
-//	if err != nil {
-//		return fmt.Errorf("could not init repo at .: %w", err)
-//	}
-//
-//	v, err := ver.Version(time.Now())
-//	if err != nil {
-//		return err
-//	}
-//
-//	if hash == "" {
-//		hash = "HEAD"
-//	}
-//	_, err = r.CreateTag(v, plumbing.NewHash(hash), &git.CreateTagOptions{
-//		//Force: true,
-//	})
-//	if err != nil {
-//		return fmt.Errorf("could not create tag: %w", err)
-//	}
-//	return nil
-//}
+func Retag(args TagArgs) (string, error) {
+	r, err := git.PlainOpen(".")
+	if err != nil {
+		return "", fmt.Errorf("could not init repo at .: %w", err)
+	}
+
+	err = r.DeleteTag(args.Tag)
+	if err != nil {
+		return "", fmt.Errorf("could not delete tag: %w", err)
+	}
+
+	return TagNext(args)
+}
 
 func TagExists(tag string) bool {
 	r, err := git.PlainOpen(".")
@@ -277,6 +270,32 @@ func TagExists(tag string) bool {
 		return false
 	}
 	return tagExists(r, tag)
+}
+
+func getCommitByTag(r *git.Repository, tag string) (*object.Commit, error) {
+	rev, _ := r.ResolveRevision(plumbing.Revision(tag))
+	co, err := r.CommitObject(plumbing.NewHash(rev.String()))
+	if err != nil {
+		return nil, err
+	}
+	return co, nil
+}
+
+func TagHash(tag string) string {
+	r, err := git.PlainOpen(".")
+	if err != nil {
+		return ""
+	}
+
+	ref, err := r.Tag(tag)
+	if err != nil {
+		return ""
+	}
+	co, err := getCommitByTag(r, string(ref.Name()))
+	if err != nil {
+		return ""
+	}
+	return co.Hash.String()[:7]
 }
 
 func tagExists(r *git.Repository, tag string) bool {

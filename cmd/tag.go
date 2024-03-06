@@ -84,17 +84,62 @@ var tagCmd = &cobra.Command{
 				Modifier: modifier,
 			})
 		CheckIfError(err)
-		v, _ := f.Version(time.Now())
+
+		tag := ""
+		if len(args) > 0 {
+			tag = args[0]
+		}
+
+		if tag == "" {
+			tag, _ = f.Version(time.Now())
+		}
 		commit, err := ver.TagNext(ver.TagArgs{
 			Hash: hash,
 			Push: push,
 			CV:   f,
+			Tag:  tag,
 		})
-		if err != nil {
-			colour.Red.Println("error: %s", err)
-			os.Exit(1)
+		CheckIfError(err)
+		fmt.Printf("Created tag '%s' (hash %s)", tag, commit)
+	},
+}
+
+var retagCmd = &cobra.Command{
+	Use:   "retag",
+	Short: "retag",
+	Run: func(cmd *cobra.Command, args []string) {
+		cf := loadFormat()
+		f, err := ver.NewCalVer(
+			ver.CalVerArgs{
+				Format:   cf,
+				Micro:    &micro,
+				Minor:    &minor,
+				Modifier: modifier,
+			})
+		CheckIfError(err)
+
+		tag := ""
+		if len(args) > 0 {
+			tag = args[0]
 		}
-		fmt.Printf("Created tag '%s' (hash %s)", v, commit)
+
+		if tag == "" {
+			tag, _ = f.Version(time.Now())
+		}
+
+		exists := ver.TagExists(tag)
+		if !exists {
+			CheckIfError(fmt.Errorf("tag '%s' does not exist", tag))
+		}
+
+		commit, err := ver.Retag(ver.TagArgs{
+			Hash: hash,
+			Push: push,
+			CV:   f,
+			Tag:  tag,
+		})
+		CheckIfError(err)
+		fmt.Printf("Created tag '%s' (hash %s)", tag, commit)
 	},
 }
 
@@ -111,6 +156,7 @@ func init() {
 	rootCmd.AddCommand(tagCmd)
 	tagCmd.Flags().BoolVarP(&push, "push", "p", false, "Push tag after create")
 	tagCmd.Flags().StringVar(&hash, "hash", "", "Override Hash")
+	rootCmd.AddCommand(tagCmd)
 
 	rootCmd.AddCommand(nextTagCommand)
 	nextTagCommand.Flags().StringVar(&hash, "hash", "HEAD", "Override Hash")
