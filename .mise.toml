@@ -10,9 +10,18 @@ not_found_auto_install = true
 
 [tasks.build]
 description = 'Build the CLI'
+alias = 'b'
 run = """
 #!/usr/bin/env bash
 echo "Building bin/${BINARY}"
 go build -o bin/${BINARY} main.go
 """
-alias = 'b'
+
+[tasks.tests]
+description = 'Run the tests'
+alias = 't'
+run = """
+#!/usr/bin/env bash
+echo "Running Tests"
+go test ./...
+"""

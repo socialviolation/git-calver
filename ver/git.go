@@ -9,7 +9,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"log"
 	"os"
-	"strings"
+	"sort"
 	"time"
 )
 
@@ -66,7 +66,19 @@ func SetRepoFormat(f *Format) error {
 	return nil
 }
 
-func ListTags(format *Format, limit int) (map[string][]CalVerTag, error) {
+func LatestTag(format *Format, changelog bool) (*CalVerTagGroup, error) {
+	latestList, err := ListTags(format, 1, changelog)
+	if err != nil {
+		return nil, err
+	}
+	for _, tagGroup := range latestList {
+		return tagGroup, nil
+	}
+
+	return nil, fmt.Errorf("no latest tag found")
+}
+
+func ListTags(format *Format, limit int, changelog bool) ([]*CalVerTagGroup, error) {
 	r, err := git.PlainOpen(".")
 	if err != nil {
 		return nil, fmt.Errorf("could not init repo at .: %w", err)
@@ -74,16 +86,13 @@ func ListTags(format *Format, limit int) (map[string][]CalVerTag, error) {
 
 	refs, err := r.Tags()
 	if err != nil {
-		return nil, fmt.Errorf("could not find tags: %w", err)
+		return nil, fmt.Errorf("could not find printTags: %w", err)
 	}
-	tags := make([]CalVerTag, 0)
 	regex := format.Regex()
 
+	tagMap := make(map[string]*CalVerTagGroup)
+	hashes := make([]string, 0)
 	err = refs.ForEach(func(tag *plumbing.Reference) error {
-		if !tag.Name().IsTag() {
-			return nil
-		}
-
 		short := tag.Name().Short()
 		if !regex.Match([]byte(short)) {
 			return nil
@@ -94,96 +103,160 @@ func ListTags(format *Format, limit int) (map[string][]CalVerTag, error) {
 			return nil
 		}
 
-		tags = append(tags, CalVerTag{
-			Tag:    tag,
-			Commit: co,
-		})
+		hash := co.Hash.String()[:7]
+		inc := func(l []string, s string) bool {
+			for _, c := range l {
+				if c == s {
+					return true
+				}
+			}
+			return false
+		}
+		if !inc(hashes, hash) {
+			hashes = append(hashes, hash)
+		}
+
+		if tagMap[hash] == nil {
+			tagMap[hash] = &CalVerTagGroup{
+				Hash:      hash,
+				Commit:    co,
+				When:      co.Author.When,
+				Tags:      []string{short},
+				Refs:      []*plumbing.Reference{tag},
+				ChangeLog: []*object.Commit{co},
+			}
+			return nil
+		}
+
+		tagMap[hash].Tags = append(tagMap[hash].Tags, short)
+		tagMap[hash].Refs = append(tagMap[hash].Refs, tag)
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
+	sort.Slice(hashes, func(i, j int) bool {
+		return tagMap[hashes[j]].Time().Before(tagMap[hashes[i]].Time())
+	})
 
-	//sort.Slice(tags, func(i, j int) bool {
-	//	return tags[j].Time().Before(tags[i].Time())
-	//})
-
-	inc := 0
-	tagMap := make(map[string][]CalVerTag)
-	for _, tag := range tags {
-		hash := tag.Tag.Hash().String()[:7]
-		if tagMap[hash] == nil {
-			tagMap[hash] = []CalVerTag{tag}
-			inc++
-			if inc >= limit {
-				break
+	if changelog {
+		for i, hash := range hashes {
+			since := time.Time{}
+			if i < len(hashes)-2 {
+				since = tagMap[hashes[i+1]].Commit.Author.When.Add(time.Second * 1)
 			}
-			continue
-		}
 
-		tagMap[hash] = append(tagMap[hash], tag)
+			logs, _ := r.Log(&git.LogOptions{
+				Order: git.LogOrderCommitterTime,
+				Since: &since,
+				Until: &tagMap[hash].Commit.Author.When,
+			})
+			if logs == nil {
+				continue
+			}
+			includes := func(l []*object.Commit, commit *object.Commit) bool {
+				for _, c := range l {
+					if c.Hash.String() == commit.Hash.String() {
+						return true
+					}
+				}
+				return false
+			}
+			_ = logs.ForEach(func(commit *object.Commit) error {
+				if !includes(tagMap[hash].ChangeLog, commit) {
+					tagMap[hash].ChangeLog = append(tagMap[hash].ChangeLog, commit)
+				}
+				return nil
+			})
+		}
 	}
-	return tagMap, nil
+
+	results := make([]*CalVerTagGroup, 0)
+	for i, hash := range hashes {
+		if i == 0 {
+			tagMap[hash].Latest = true
+		}
+		if i >= limit {
+			break
+		}
+		results = append(results, tagMap[hash])
+	}
+
+	return results, nil
 }
 
-func TagNext(ver CalVer, hash string) error {
+type TagArgs struct {
+	CV   *CalVer
+	Hash string
+	Push bool
+	Tag  string
+}
+
+func TagNext(args TagArgs) error {
 	r, err := git.PlainOpen(".")
 	if err != nil {
 		return fmt.Errorf("could not init repo at .: %w", err)
 	}
 
-	v, err := ver.Version(time.Now())
+	v, err := args.CV.Version(time.Now())
 	if err != nil {
 		return err
 	}
 
-	if hash == "" {
-		h, err := r.ResolveRevision("HEAD")
+	hRaw := plumbing.NewHash(args.Hash)
+	h := &hRaw
+	if h.IsZero() {
+		h, err = r.ResolveRevision("HEAD")
 		if err != nil {
 			return fmt.Errorf("could not resolve HEAD: %w", err)
 		}
-		hash = h.String()
 	} else {
-		_, err := r.ResolveRevision(plumbing.Revision(hash))
+		h, err = r.ResolveRevision(plumbing.Revision(h.String()))
 		if err != nil {
-			return fmt.Errorf("could not resolve hash %s: %w", hash, err)
+			return fmt.Errorf("could not resolve hash %s: %w", h.String(), err)
 		}
 	}
-	_, err = setTag(r, v)
+
+	co, err := r.CommitObject(*h)
+	created, err := setTag(r, v, co)
 	if err != nil {
 		return fmt.Errorf("could not create tag: %w", err)
+	}
+
+	if created && args.Push {
+		err = pushTags(r, v)
 	}
 	return nil
 }
 
-func Retag(ver CalVer, hash string) error {
-	r, err := git.PlainOpen(".")
-	if err != nil {
-		return fmt.Errorf("could not init repo at .: %w", err)
-	}
-
-	v, err := ver.Version(time.Now())
-	if err != nil {
-		return err
-	}
-
-	if hash == "" {
-		hash = "HEAD"
-	}
-	_, err = r.CreateTag(v, plumbing.NewHash(hash), &git.CreateTagOptions{
-		//Force: true,
-	})
-	if err != nil {
-		return fmt.Errorf("could not create tag: %w", err)
-	}
-	return nil
-}
+//func Retag(ver CalVer, hash string) error {
+//	r, err := git.PlainOpen(".")
+//	if err != nil {
+//		return fmt.Errorf("could not init repo at .: %w", err)
+//	}
+//
+//	v, err := ver.Version(time.Now())
+//	if err != nil {
+//		return err
+//	}
+//
+//	if hash == "" {
+//		hash = "HEAD"
+//	}
+//	_, err = r.CreateTag(v, plumbing.NewHash(hash), &git.CreateTagOptions{
+//		//Force: true,
+//	})
+//	if err != nil {
+//		return fmt.Errorf("could not create tag: %w", err)
+//	}
+//	return nil
+//}
 
 func tagExists(r *git.Repository, tag string) bool {
 	tagFoundErr := "tag was found"
 	tags, err := r.TagObjects()
 	if err != nil {
-		log.Printf("get tags error: %s", err)
+		log.Printf("get printTags error: %s", err)
 		return false
 	}
 	res := false
@@ -195,13 +268,13 @@ func tagExists(r *git.Repository, tag string) bool {
 		return nil
 	})
 	if err != nil && err.Error() != tagFoundErr {
-		log.Printf("iterate tags error: %s", err)
+		log.Printf("iterate printTags error: %s", err)
 		return false
 	}
 	return res
 }
 
-func setTag(r *git.Repository, tag string) (bool, error) {
+func setTag(r *git.Repository, tag string, co *object.Commit) (bool, error) {
 	if tagExists(r, tag) {
 		log.Printf("tag %s already exists", tag)
 		return false, nil
@@ -211,7 +284,9 @@ func setTag(r *git.Repository, tag string) (bool, error) {
 		log.Printf("get HEAD error: %s", err)
 		return false, err
 	}
+
 	_, err = r.CreateTag(tag, h.Hash(), &git.CreateTagOptions{
+		Tagger:  &co.Author,
 		Message: tag,
 	})
 
@@ -223,11 +298,19 @@ func setTag(r *git.Repository, tag string) (bool, error) {
 	return true, nil
 }
 
-func pushTags(r *git.Repository) error {
+func pushTags(r *git.Repository, tag ...string) error {
+	if len(tag) == 0 {
+		return fmt.Errorf("no printTags to push")
+	}
+	refSpecs := make([]config.RefSpec, len(tag))
+	for _, t := range tag {
+		refSpecs = append(refSpecs, config.RefSpec(fmt.Sprintf("refs/printTags/%s:refs/printTags/%s", t, t)))
+	}
+
 	po := &git.PushOptions{
 		RemoteName: "origin",
 		Progress:   os.Stdout,
-		RefSpecs:   []config.RefSpec{config.RefSpec("refs/tags/*:refs/tags/*")},
+		RefSpecs:   refSpecs,
 	}
 	err := r.Push(po)
 
@@ -241,25 +324,4 @@ func pushTags(r *git.Repository) error {
 	}
 
 	return nil
-}
-
-type CalVerTag struct {
-	Tag    *plumbing.Reference
-	Commit *object.Commit
-}
-
-func (cvt CalVerTag) Time() time.Time {
-	if cvt.Commit == nil {
-		return time.Time{}
-	}
-	return cvt.Commit.Author.When
-}
-
-func (cvt CalVerTag) Surname() string {
-	if cvt.Commit == nil {
-		return ""
-	}
-
-	b := strings.Split(cvt.Commit.Author.Name, " ")
-	return b[len(b)-1]
 }
