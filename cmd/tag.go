@@ -104,16 +104,6 @@ var tagCmd = &cobra.Command{
 	},
 }
 
-var testCmd = &cobra.Command{
-	Use:   "test",
-	Short: "test",
-	Run: func(cmd *cobra.Command, args []string) {
-		asd, err := ver.VerifyHash(hash)
-		CheckIfError(err)
-		fmt.Println(asd)
-	},
-}
-
 var retagCmd = &cobra.Command{
 	Use:   "retag",
 	Short: "retag",
@@ -153,6 +143,44 @@ var retagCmd = &cobra.Command{
 	},
 }
 
+var untagCmd = &cobra.Command{
+	Use:   "untag",
+	Short: "untag",
+	Run: func(cmd *cobra.Command, args []string) {
+		cf := loadFormat()
+		f, err := ver.NewCalVer(
+			ver.CalVerArgs{
+				Format:   cf,
+				Micro:    &micro,
+				Minor:    &minor,
+				Modifier: modifier,
+			})
+		CheckIfError(err)
+
+		tag := ""
+		if len(args) > 0 {
+			tag = args[0]
+		}
+
+		if tag == "" {
+			tag, _ = f.Version(time.Now())
+		}
+
+		exists := ver.TagExists(tag)
+		if !exists {
+			CheckIfError(fmt.Errorf("tag '%s' does not exist", tag))
+		}
+
+		err = ver.Untag(ver.TagArgs{
+			Hash: hash,
+			Push: push,
+			CV:   f,
+			Tag:  tag,
+		})
+		CheckIfError(err)
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(listTagCmd)
 	listTagCmd.Flags().BoolVar(&noColour, "no-colour", false, "Disable colour output")
@@ -166,13 +194,15 @@ func init() {
 	rootCmd.AddCommand(tagCmd)
 	tagCmd.Flags().BoolVarP(&push, "push", "p", false, "Push tag after create")
 	tagCmd.Flags().StringVar(&hash, "hash", "", "Override Hash")
+
 	rootCmd.AddCommand(retagCmd)
-	retagCmd.Flags().BoolVarP(&push, "push", "p", false, "Push tag after create")
+	retagCmd.Flags().BoolVarP(&push, "push", "p", false, "Push tag after update")
 	retagCmd.Flags().StringVar(&hash, "hash", "", "Override Hash")
+
+	rootCmd.AddCommand(untagCmd)
+	untagCmd.Flags().BoolVarP(&push, "push", "p", false, "Push tag after delete")
+	untagCmd.Flags().StringVar(&hash, "hash", "", "Override Hash")
 
 	rootCmd.AddCommand(nextTagCommand)
 	nextTagCommand.Flags().StringVar(&hash, "hash", "HEAD", "Override Hash")
-
-	rootCmd.AddCommand(testCmd)
-	testCmd.Flags().StringVar(&hash, "hash", "HEAD", "Override Hash")
 }

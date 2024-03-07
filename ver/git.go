@@ -1,14 +1,12 @@
 package ver
 
 import (
-	"errors"
 	"fmt"
 	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"log"
-	"os"
+	"os/exec"
 	"sort"
 	"strings"
 	"time"
@@ -94,7 +92,7 @@ func ListTags(format *Format, limit int, changelog bool) ([]*CalVerTagGroup, err
 
 	refs, err := r.Tags()
 	if err != nil {
-		return nil, fmt.Errorf("could not find printTags: %w", err)
+		return nil, fmt.Errorf("could not find ags: %w", err)
 	}
 	regex := format.Regex()
 
@@ -246,34 +244,46 @@ func TagNext(args TagArgs) (string, error) {
 		}
 	}
 
-	created, err := setTag(r, v, co)
+	_, err = setTag(r, v, co)
 	if err != nil {
 		return "", fmt.Errorf("could not create tag: %w", err)
 	}
 
-	if created && args.Push {
-		err = pushTags(r, v)
+	if args.Push {
+		err = pushTags(false, v)
 	}
 	if co == nil {
-		return "HEAD", nil
+		return "HEAD", err
 	}
 
 	return co.Hash.String()[:7], nil
 }
 
-func Retag(args TagArgs) (string, error) {
+func Untag(args TagArgs) error {
 	r, err := git.PlainOpen(".")
 	if err != nil {
-		return "", fmt.Errorf("could not init repo at .: %w", err)
+		return fmt.Errorf("could not init repo at .: %w", err)
 	}
 
 	oldHash := tagHash(args.Tag)
 	err = r.DeleteTag(args.Tag)
 	if err != nil {
-		return "", fmt.Errorf("could not delete tag '%s': %w", args.Tag, err)
+		return fmt.Errorf("could not delete tag '%s': %w", args.Tag, err)
 	}
 
 	fmt.Printf("Deleted tag '%s' (hash %s)\n", args.Tag, oldHash[:7])
+
+	if args.Push {
+		return pushTags(true, args.Tag)
+	}
+	return nil
+}
+
+func Retag(args TagArgs) (string, error) {
+	err := Untag(args)
+	if err != nil {
+		return "", err
+	}
 
 	return TagNext(args)
 }
@@ -337,7 +347,7 @@ func tagExists(r *git.Repository, tag string) bool {
 	tagFoundErr := "tag was found"
 	tags, err := r.Tags()
 	if err != nil {
-		log.Printf("get printTags error: %s", err)
+		log.Printf("get tags error: %s", err)
 		return false
 	}
 	res := false
@@ -349,7 +359,7 @@ func tagExists(r *git.Repository, tag string) bool {
 		return nil
 	})
 	if err != nil && err.Error() != tagFoundErr {
-		fmt.Printf("iterate printTags error: %s", err)
+		fmt.Printf("iterate ags error: %s", err)
 		return false
 	}
 	return res
@@ -386,29 +396,34 @@ func setTag(r *git.Repository, tag string, co *object.Commit) (bool, error) {
 	return true, nil
 }
 
-func pushTags(r *git.Repository, tag ...string) error {
+func pushTags(deletion bool, tag ...string) error {
 	if len(tag) == 0 {
-		return fmt.Errorf("no printTags to push")
+		return fmt.Errorf("no tags to push")
 	}
-	refSpecs := make([]config.RefSpec, len(tag))
-	for _, t := range tag {
-		refSpecs = append(refSpecs, config.RefSpec(fmt.Sprintf("refs/printTags/%s:refs/printTags/%s", t, t)))
-	}
-
-	po := &git.PushOptions{
-		RemoteName: "origin",
-		Progress:   os.Stdout,
-		RefSpecs:   refSpecs,
-	}
-	err := r.Push(po)
-
+	gitPathCmd := exec.Command("which", "git")
+	gitPath, err := gitPathCmd.Output()
 	if err != nil {
-		if errors.Is(err, git.NoErrAlreadyUpToDate) {
-			log.Print("origin remote was up to date, no push done")
-			return nil
+		return fmt.Errorf("could not find git on host system, push is not supported")
+	}
+
+	gitCmd := strings.Replace(string(gitPath), "\n", "", -1)
+
+	for _, t := range tag {
+		action := fmt.Sprintf("pushing %s to origin\n", t)
+		cmd := exec.Command(gitCmd, "push", "origin", t)
+
+		if deletion {
+			cmd = exec.Command(gitCmd, "push", "origin", "--delete", t)
+			action = fmt.Sprintf("deleting %s on origin\n", t)
 		}
-		log.Printf("push to remote origin error: %s", err)
-		return err
+		fmt.Printf(action)
+		stdout, err := cmd.Output()
+		if err != nil {
+			fmt.Println(err.Error())
+			continue
+		}
+
+		fmt.Println(string(stdout))
 	}
 
 	return nil
