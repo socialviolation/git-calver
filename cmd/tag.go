@@ -6,13 +6,15 @@ import (
 	"github.com/socialviolation/git-calver/ver"
 	"github.com/spf13/cobra"
 	"os"
+	"strconv"
 	"time"
 )
 
 var (
-	noColour  bool
-	limit     int
-	changelog bool
+	noColour      bool
+	limit         int
+	changelog     bool
+	autoIncrement bool
 )
 
 var latestTagCmd = &cobra.Command{
@@ -84,6 +86,15 @@ var tagCmd = &cobra.Command{
 				Modifier: modifier,
 			})
 		CheckIfError(err)
+
+		if autoIncrement {
+			nextInc, err := ver.GetLatestAutoInc(f)
+			if err != nil {
+				fmt.Printf("could not find next increment: %w\n", err)
+				os.Exit(1)
+			}
+			f.Modifier = f.Modifier + strconv.Itoa(nextInc)
+		}
 
 		tag := ""
 		if len(args) > 0 {
@@ -193,6 +204,7 @@ func init() {
 
 	rootCmd.AddCommand(tagCmd)
 	tagCmd.Flags().BoolVarP(&push, "push", "p", false, "Push tag after create")
+	tagCmd.Flags().BoolVarP(&autoIncrement, "auto-increment", "i", false, "Adds an auto-incremented modifier, based off previous latest release")
 	tagCmd.Flags().StringVar(&hash, "hash", "", "Override Hash")
 
 	rootCmd.AddCommand(retagCmd)

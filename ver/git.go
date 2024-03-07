@@ -8,6 +8,7 @@ import (
 	"log"
 	"os/exec"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -82,6 +83,50 @@ func LatestTag(format *Format, changelog bool) (*CalVerTagGroup, error) {
 	}
 
 	return nil, fmt.Errorf("no latest tag found")
+}
+
+func GetLatestAutoInc(cv *CalVer) (int, error) {
+	latest, err := LatestTag(cv.Format, false)
+	autoMod := 1
+	if err != nil {
+		return 0, fmt.Errorf("could not find latest tag with format: %s", cv.Format.String())
+	}
+
+	nextTagStr, err := cv.Version(time.Now())
+	if err != nil {
+		return 0, fmt.Errorf("could not generate next version: %w", err)
+	}
+
+	nextCalVer := strings.Split(nextTagStr, "-")[0]
+	foundIncableV := false
+
+	for _, tag := range latest.Tags {
+		if !strings.HasPrefix(tag, nextCalVer) {
+			// No matching tag found to increment
+			continue
+		}
+
+		foundIncableV = true
+		latestModBits := strings.Split(tag, "-")
+		if len(latestModBits) == 1 {
+			autoMod = 1
+		}
+		latestMod := latestModBits[1]
+		if strings.HasPrefix(latestMod, cv.Modifier) {
+			incPartMod := strings.Replace(latestMod, cv.Modifier, "", 1)
+			oldInc, err := strconv.Atoi(incPartMod)
+			if err != nil {
+				continue
+			}
+			autoMod = oldInc + 1
+		}
+	}
+
+	if !foundIncableV {
+		return 1, nil
+	}
+
+	return autoMod, nil
 }
 
 func ListTags(format *Format, limit int, changelog bool) ([]*CalVerTagGroup, error) {
