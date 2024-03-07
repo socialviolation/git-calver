@@ -4,6 +4,10 @@
 
 ## Installation
 
+```bash
+go install github.com/socialviolation/git-calver
+```
+
 ## Set up
 
 `calver` requires a CalVer format to be provided.
