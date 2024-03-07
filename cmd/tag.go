@@ -90,7 +90,7 @@ var tagCmd = &cobra.Command{
 		if autoIncrement {
 			nextInc, err := ver.GetLatestAutoInc(f)
 			if err != nil {
-				fmt.Printf("could not find next increment: %w\n", err)
+				fmt.Printf("could not find next increment: %s\n", err.Error())
 				os.Exit(1)
 			}
 			f.Modifier = f.Modifier + strconv.Itoa(nextInc)
