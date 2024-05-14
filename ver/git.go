@@ -190,6 +190,7 @@ func ListTags(format *Format, limit int, changelog bool) ([]*CalVerTagGroup, err
 	})
 
 	if changelog {
+		changeLimit := 20
 		for i, hash := range hashes {
 			since := time.Time{}
 			if i < len(hashes)-2 {
@@ -218,6 +219,10 @@ func ListTags(format *Format, limit int, changelog bool) ([]*CalVerTagGroup, err
 				}
 				return nil
 			})
+			changeLimit++
+			if changeLimit > 20 {
+				break
+			}
 		}
 	}
 

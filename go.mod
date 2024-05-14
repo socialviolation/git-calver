@@ -1,6 +1,6 @@
 module github.com/socialviolation/git-calver
 
-go 1.22.0
+go 1.22
 
 require (
 	github.com/andanhm/go-prettytime v1.1.0
