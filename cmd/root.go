@@ -5,6 +5,7 @@ import (
 	colour "github.com/gookit/color"
 	"github.com/socialviolation/git-calver/ver"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -25,14 +26,23 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "git-calver",
 	Short: "CalVer is a git subcommand for managing a calendar versioning tag scheme.",
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		if !autoIncrementFlag && !cmd.Flags().Changed("auto-increment") {
+			autoIncrement = false
+		}
+		if autoIncrementFlag {
+			autoIncrement = true
+		}
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		cf := loadFormat()
 		f, err := ver.NewCalVer(
 			ver.CalVerArgs{
-				Format:   cf,
-				Micro:    &micro,
-				Minor:    &minor,
-				Modifier: modifier,
+				Format:        cf,
+				Micro:         &micro,
+				Minor:         &minor,
+				Modifier:      modifier,
+				AutoIncrement: autoIncrement,
 			})
 		CheckIfError(err)
 		v, _ := f.Version(time.Now())
@@ -83,6 +93,9 @@ func getFormat() (*ver.Format, string, error) {
 		if err != nil {
 			return nil, "argument", err
 		}
+		if strings.HasSuffix(format, "-A") {
+			autoIncrement = true
+		}
 
 		return f, "argument", nil
 	}
@@ -93,17 +106,27 @@ func getFormat() (*ver.Format, string, error) {
 		if err != nil {
 			return nil, "environment", err
 		}
+		if strings.HasSuffix(envVar, "-A") {
+			autoIncrement = true
+		}
 
 		return f, "environment", nil
 	}
 
-	gitConf, err := ver.GetRepoFormat()
+	gitConf, a, err := ver.GetRepoFormat()
 	if err != nil {
 		if err.Error() == "[calver] not set" {
 			return nil, "gitconfig", fmt.Errorf("format not set")
 		}
 		return nil, "gitconfig", err
 	}
+	if a {
+		autoIncrement = true
+	}
 
 	return gitConf, "gitconfig", nil
+}
+
+func autoIncIsAbsolutelyFalse(cmd *cobra.Command) bool {
+	return !cmd.Flags().Changed("auto-increment") && !autoIncrementFlag
 }

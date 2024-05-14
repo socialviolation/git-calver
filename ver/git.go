@@ -13,34 +13,31 @@ import (
 	"time"
 )
 
-func GetRepoFormat() (*Format, error) {
+func GetRepoFormat() (*Format, bool, error) {
 	r, err := git.PlainOpen(".")
 	if err != nil {
-		return nil, fmt.Errorf("could not init repo at .: %w", err)
+		return nil, false, fmt.Errorf("could not init repo at .: %w", err)
 	}
 
 	conf, err := r.Config()
 	if err != nil {
-		return nil, fmt.Errorf("could not retrieve config: %w", err)
-	}
-	if err != nil {
-		return nil, err
+		return nil, false, fmt.Errorf("could not retrieve config: %w", err)
 	}
 
 	if !conf.Raw.HasSection("calver") {
-		return nil, fmt.Errorf("[calver] not set")
+		return nil, false, fmt.Errorf("[calver] not set")
 	}
 
 	val := conf.Raw.Section("calver").Option("format")
 	if val == "" {
-		return nil, fmt.Errorf("[calver].format not set")
+		return nil, false, fmt.Errorf("[calver].format not set")
 	}
 
 	f, err := NewFormat(val)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return f, nil
+	return f, strings.HasSuffix(val, "-A"), nil
 }
 
 func SetRepoFormat(f *Format) error {
@@ -108,9 +105,11 @@ func GetLatestAutoInc(cv *CalVer) (int, error) {
 
 		foundIncableV = true
 		latestModBits := strings.Split(tag, "-")
-		if len(latestModBits) == 1 {
+		if len(latestModBits) <= 1 {
 			autoMod = 1
+			break
 		}
+
 		latestMod := latestModBits[1]
 		if strings.HasPrefix(latestMod, cv.Modifier) {
 			incPartMod := strings.Replace(latestMod, cv.Modifier, "", 1)
@@ -433,10 +432,18 @@ func setTag(r *git.Repository, tag string, co *object.Commit) (bool, error) {
 		}
 	}
 
-	_, err := r.CreateTag(tag, co.Hash, &git.CreateTagOptions{
-		Tagger:  &co.Author,
-		Message: tag,
-	})
+	gitPathCmd := exec.Command("which", "git")
+	gitPath, err := gitPathCmd.Output()
+	if err != nil {
+		return false, fmt.Errorf("could not find git on host system, push is not supported")
+	}
+
+	gitCmd := strings.Replace(string(gitPath), "\n", "", -1)
+	cmd := exec.Command(gitCmd, "tag", tag)
+	_, err = cmd.Output()
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 
 	if err != nil {
 		fmt.Printf("create tag error: %s\n", err)

@@ -68,6 +68,11 @@ func TestNewFormat(t *testing.T) {
 			out:       Format{Major: segmentFullYear, Minor: segmentShortMonth, Micro: segmentShortDay},
 			wantError: false,
 		},
+		{
+			fmt:       "YYYY.MM.DD-A",
+			out:       Format{Major: segmentFullYear, Minor: segmentShortMonth, Micro: segmentShortDay},
+			wantError: false,
+		},
 	}
 
 	for _, test := range tests {
