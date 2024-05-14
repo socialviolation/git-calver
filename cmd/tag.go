@@ -2,12 +2,13 @@ package cmd
 
 import (
 	"fmt"
-	colour "github.com/gookit/color"
-	"github.com/socialviolation/git-calver/ver"
-	"github.com/spf13/cobra"
 	"os"
 	"strconv"
 	"time"
+
+	colour "github.com/gookit/color"
+	"github.com/socialviolation/git-calver/ver"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -15,6 +16,7 @@ var (
 	limit         int
 	changelog     bool
 	autoIncrement bool
+	lean          bool
 )
 
 var latestTagCmd = &cobra.Command{
@@ -111,7 +113,11 @@ var tagCmd = &cobra.Command{
 			Tag:  tag,
 		})
 		CheckIfError(err)
-		fmt.Printf("Created tag '%s' (hash %s)\n", tag, commit)
+		if lean {
+			fmt.Println(tag)
+		} else {
+			fmt.Printf("Created tag '%s' (hash %s)\n", tag, commit)
+		}
 	},
 }
 
@@ -206,6 +212,7 @@ func init() {
 	tagCmd.Flags().BoolVarP(&push, "push", "p", false, "Push tag after create")
 	tagCmd.Flags().BoolVarP(&autoIncrement, "auto-increment", "i", false, "Adds an auto-incremented modifier, based off previous latest release")
 	tagCmd.Flags().StringVar(&hash, "hash", "", "Override Hash")
+	tagCmd.Flags().BoolVarP(&lean, "lean", "l", false, "Output the version number only")
 
 	rootCmd.AddCommand(retagCmd)
 	retagCmd.Flags().BoolVarP(&push, "push", "p", false, "Push tag after update")
