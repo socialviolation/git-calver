@@ -35,16 +35,7 @@ var rootCmd = &cobra.Command{
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		cf := loadFormat()
-		f, err := ver.NewCalVer(
-			ver.CalVerArgs{
-				Format:        cf,
-				Micro:         &micro,
-				Minor:         &minor,
-				Modifier:      modifier,
-				AutoIncrement: autoIncrement,
-			})
-		CheckIfError(err)
+		f := latestCalVer()
 		v, _ := f.Version(time.Now())
 		fmt.Println(v)
 	},
@@ -63,6 +54,34 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&modifier, "modifier", "", "Modifer (eg. DEV, RC, etc)")
 	rootCmd.PersistentFlags().UintVar(&minor, "minor", 0, "Minor Version")
 	rootCmd.PersistentFlags().UintVar(&micro, "micro", 0, "Micro Version")
+}
+
+func latestCalVer() *ver.CalVer {
+	cf := loadFormat()
+	f, err := ver.NewCalVer(
+		ver.CalVerArgs{
+			Format:        cf,
+			Micro:         &micro,
+			Minor:         &minor,
+			Modifier:      modifier,
+			AutoIncrement: autoIncrement,
+		})
+	CheckIfError(err)
+	return f
+}
+
+func nextCalVerArgs() *ver.CalVer {
+	f := loadFormat()
+	cv, err := ver.NextCalVer(
+		ver.CalVerArgs{
+			Format:        f,
+			Micro:         &micro,
+			Minor:         &minor,
+			Modifier:      modifier,
+			AutoIncrement: autoIncrement,
+		})
+	CheckIfError(err)
+	return cv
 }
 
 // CheckIfError should be used to naively panics if an error is not nil.

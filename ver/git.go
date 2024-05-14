@@ -7,6 +7,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"log"
 	"os/exec"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -70,8 +71,8 @@ type TagArgs struct {
 	Tag  string
 }
 
-func LatestTag(format *Format, changelog bool) (*CalVerTagGroup, error) {
-	latestList, err := ListTags(format, 1, changelog)
+func LatestTag(reg *regexp.Regexp, changelog bool) (*CalVerTagGroup, error) {
+	latestList, err := ListTags(reg, 1, changelog)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +84,7 @@ func LatestTag(format *Format, changelog bool) (*CalVerTagGroup, error) {
 }
 
 func GetLatestAutoInc(cv *CalVer) (int, error) {
-	latest, err := LatestTag(cv.Format, false)
+	latest, err := LatestTag(cv.Regex(), false)
 	autoMod := 1
 	if err != nil {
 		return 0, fmt.Errorf("could not find latest tag with format: %s", cv.Format.String())
@@ -128,7 +129,7 @@ func GetLatestAutoInc(cv *CalVer) (int, error) {
 	return autoMod, nil
 }
 
-func ListTags(format *Format, limit int, changelog bool) ([]*CalVerTagGroup, error) {
+func ListTags(reg *regexp.Regexp, limit int, changelog bool) ([]*CalVerTagGroup, error) {
 	r, err := git.PlainOpen(".")
 	if err != nil {
 		return nil, fmt.Errorf("could not init repo at .: %w", err)
@@ -138,13 +139,12 @@ func ListTags(format *Format, limit int, changelog bool) ([]*CalVerTagGroup, err
 	if err != nil {
 		return nil, fmt.Errorf("could not find ags: %w", err)
 	}
-	regex := format.Regex()
 
 	tagMap := make(map[string]*CalVerTagGroup)
 	hashes := make([]string, 0)
 	err = refs.ForEach(func(tag *plumbing.Reference) error {
 		short := tag.Name().Short()
-		if !regex.Match([]byte(short)) {
+		if !reg.Match([]byte(short)) {
 			return nil
 		}
 		co, _ := getCommitByTag(r, string(tag.Name()))

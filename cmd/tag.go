@@ -23,8 +23,8 @@ var latestTagCmd = &cobra.Command{
 	Use:   "latest",
 	Short: "Get latest tag matching the provided format",
 	Run: func(cmd *cobra.Command, args []string) {
-		f := loadFormat()
-		tag, err := ver.LatestTag(f, changelog)
+		f := latestCalVer()
+		tag, err := ver.LatestTag(f.Regex(), changelog)
 		CheckIfError(err)
 
 		if tag == nil {
@@ -40,16 +40,7 @@ var nextTagCommand = &cobra.Command{
 	Use:   "next",
 	Short: "Output what the next calver tag will be",
 	Run: func(cmd *cobra.Command, args []string) {
-		f := loadFormat()
-		cv, err := ver.NextCalVer(
-			ver.CalVerArgs{
-				Format:        f,
-				Micro:         &micro,
-				Minor:         &minor,
-				Modifier:      modifier,
-				AutoIncrement: autoIncrement,
-			})
-		CheckIfError(err)
+		cv := nextCalVerArgs()
 		tag, err := cv.Version(time.Now())
 		CheckIfError(err)
 
@@ -66,8 +57,8 @@ var listTagCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Will list all CalVer tags matching the provided format",
 	Run: func(cmd *cobra.Command, args []string) {
-		f := loadFormat()
-		tags, err := ver.ListTags(f, limit, changelog)
+		f := latestCalVer()
+		tags, err := ver.ListTags(f.Regex(), limit, changelog)
 		CheckIfError(err)
 
 		if len(tags) == 0 {
@@ -85,17 +76,9 @@ var tagCmd = &cobra.Command{
 	Use:   "tag",
 	Short: "tag",
 	Run: func(cmd *cobra.Command, args []string) {
-		cf := loadFormat()
-		f, err := ver.NextCalVer(
-			ver.CalVerArgs{
-				Format:        cf,
-				Micro:         &micro,
-				Minor:         &minor,
-				Modifier:      modifier,
-				AutoIncrement: autoIncrement,
-			})
+		cv := nextCalVerArgs()
 
-		if f == nil {
+		if cv == nil {
 			CheckIfError(fmt.Errorf("error getting next tag"))
 		}
 
@@ -105,12 +88,12 @@ var tagCmd = &cobra.Command{
 		}
 
 		if tag == "" {
-			tag, _ = f.Version(time.Now())
+			tag, _ = cv.Version(time.Now())
 		}
 		commit, err := ver.TagNext(ver.TagArgs{
 			Hash: hash,
 			Push: push,
-			CV:   f,
+			CV:   cv,
 			Tag:  tag,
 		})
 		CheckIfError(err)
@@ -126,16 +109,7 @@ var retagCmd = &cobra.Command{
 	Use:   "retag",
 	Short: "retag",
 	Run: func(cmd *cobra.Command, args []string) {
-		cf := loadFormat()
-		f, err := ver.NewCalVer(
-			ver.CalVerArgs{
-				Format:        cf,
-				Micro:         &micro,
-				Minor:         &minor,
-				Modifier:      modifier,
-				AutoIncrement: autoIncrement,
-			})
-		CheckIfError(err)
+		cv := latestCalVer()
 
 		tag := ""
 		if len(args) > 0 {
@@ -143,7 +117,7 @@ var retagCmd = &cobra.Command{
 		}
 
 		if tag == "" {
-			tag, _ = f.Version(time.Now())
+			tag, _ = cv.Version(time.Now())
 		}
 
 		exists := ver.TagExists(tag)
@@ -154,7 +128,7 @@ var retagCmd = &cobra.Command{
 		commit, err := ver.Retag(ver.TagArgs{
 			Hash: hash,
 			Push: push,
-			CV:   f,
+			CV:   cv,
 			Tag:  tag,
 		})
 		CheckIfError(err)
@@ -166,15 +140,7 @@ var untagCmd = &cobra.Command{
 	Use:   "untag",
 	Short: "untag",
 	Run: func(cmd *cobra.Command, args []string) {
-		cf := loadFormat()
-		f, err := ver.NewCalVer(
-			ver.CalVerArgs{
-				Format:   cf,
-				Micro:    &micro,
-				Minor:    &minor,
-				Modifier: modifier,
-			})
-		CheckIfError(err)
+		cv := nextCalVerArgs()
 
 		tag := ""
 		if len(args) > 0 {
@@ -182,7 +148,7 @@ var untagCmd = &cobra.Command{
 		}
 
 		if tag == "" {
-			tag, _ = f.Version(time.Now())
+			tag, _ = cv.Version(time.Now())
 		}
 
 		exists := ver.TagExists(tag)
@@ -190,10 +156,10 @@ var untagCmd = &cobra.Command{
 			CheckIfError(fmt.Errorf("tag '%s' does not exist", tag))
 		}
 
-		err = ver.Untag(ver.TagArgs{
+		err := ver.Untag(ver.TagArgs{
 			Hash: hash,
 			Push: push,
-			CV:   f,
+			CV:   cv,
 			Tag:  tag,
 		})
 		CheckIfError(err)
