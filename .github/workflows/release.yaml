@@ -1,8 +1,6 @@
 on:
-  release: {}
-  push:
-    branches:
-      - 'feature/publisher'
+  release:
+    types: [ created ]
 
 name: Build Release
 jobs:
