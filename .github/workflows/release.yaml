@@ -13,8 +13,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: compile and release
         uses: wangyoucao577/go-release-action@v1
-        env:
-          releasename: "draft"
+        with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           goarch: "386"
           goos: linux
@@ -25,8 +24,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: compile and release
         uses: wangyoucao577/go-release-action@v1
-        env:
-          releasename: "draft"
+        with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           goarch: amd64
           goos: linux
@@ -37,8 +35,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: compile and release
         uses: wangyoucao577/go-release-action@v1
-        env:
-          releasename: "draft"
+        with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           goarch: "arm"
           goos: linux
@@ -49,8 +46,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: compile and release
         uses: wangyoucao577/go-release-action@v1
-        env:
-          releasename: "draft"
+        with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           goarch: arm64
           goos: linux
@@ -61,8 +57,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: compile and release
         uses: wangyoucao577/go-release-action@v1
-        env:
-          releasename: "draft"
+        with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           goarch: amd64
           goos: darwin
