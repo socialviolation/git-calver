@@ -69,7 +69,7 @@ func TestNewFormat(t *testing.T) {
 			wantError: false,
 		},
 		{
-			fmt:       "YYYY.MM.DD-A",
+			fmt:       "YYYY.MM.DD-AUTO",
 			out:       Format{Major: segmentFullYear, Minor: segmentShortMonth, Micro: segmentShortDay},
 			wantError: false,
 		},
@@ -266,7 +266,7 @@ func TestCalVerVersion(t *testing.T) {
 		},
 		{
 			args: CalVerArgs{
-				RawFormat:     "YY.0M-A",
+				RawFormat:     "YY.0M-AUTO",
 				AutoIncrement: true,
 				Modifier:      "2",
 			},

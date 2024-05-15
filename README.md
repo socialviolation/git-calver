@@ -24,9 +24,8 @@ export CALVER="YYYY.0M.0D"
 # OR FLAG - highest priority
 $ git calver tag --format="YY.0M.DD"
 
-#specify -A for auto-incrementing
-# OR FLAG - highest priority
-$ git calver tag --format="YY.0M-A"
+# specify `-AUTO` for auto-incrementing
+$ git calver tag --format="YY.0M-AUTO"
 ```
 
 ## Usage

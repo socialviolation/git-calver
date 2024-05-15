@@ -38,7 +38,7 @@ func GetRepoFormat() (*Format, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
-	return f, strings.HasSuffix(val, "-A"), nil
+	return f, strings.HasSuffix(val, "-AUTO"), nil
 }
 
 func SetRepoFormat(f *Format) error {

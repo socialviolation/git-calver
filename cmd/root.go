@@ -112,7 +112,7 @@ func getFormat() (*ver.Format, string, error) {
 		if err != nil {
 			return nil, "argument", err
 		}
-		if strings.HasSuffix(format, "-A") {
+		if strings.HasSuffix(format, "-AUTO") {
 			autoIncrement = true
 		}
 
@@ -125,7 +125,7 @@ func getFormat() (*ver.Format, string, error) {
 		if err != nil {
 			return nil, "environment", err
 		}
-		if strings.HasSuffix(envVar, "-A") {
+		if strings.HasSuffix(envVar, "-AUTO") {
 			autoIncrement = true
 		}
 
@@ -144,8 +144,4 @@ func getFormat() (*ver.Format, string, error) {
 	}
 
 	return gitConf, "gitconfig", nil
-}
-
-func autoIncIsAbsolutelyFalse(cmd *cobra.Command) bool {
-	return !cmd.Flags().Changed("auto-increment") && !autoIncrementFlag
 }

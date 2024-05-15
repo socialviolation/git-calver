@@ -55,7 +55,7 @@ func (c *CalVer) Regex() *regexp.Regexp {
 	if c.AutoIncrement {
 		mod = `-\d+`
 	} else if c.Modifier != "" {
-		mod = c.Modifier
+		mod = fmt.Sprintf(`-%s`, c.Modifier)
 	}
 
 	if c.Format.Minor == segmentEmpty {
@@ -194,7 +194,7 @@ func (s segment) Regex() string {
 	case segmentMicro:
 		return Micro
 	case segmentAuto:
-		return "\b(AUTO)|\\d+)\b"
+		return "\b(A)|\\d+)\b"
 	case segmentEmpty:
 		return ""
 	default:
