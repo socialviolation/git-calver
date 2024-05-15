@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"time"
 
 	colour "github.com/gookit/color"
@@ -12,19 +11,20 @@ import (
 )
 
 var (
-	noColour      bool
-	limit         int
-	changelog     bool
-	autoIncrement bool
-	lean          bool
+	noColour          bool
+	limit             int
+	changelog         bool
+	autoIncrement     bool
+	autoIncrementFlag bool
+	lean              bool
 )
 
 var latestTagCmd = &cobra.Command{
 	Use:   "latest",
 	Short: "Get latest tag matching the provided format",
 	Run: func(cmd *cobra.Command, args []string) {
-		f := loadFormat()
-		tag, err := ver.LatestTag(f, changelog)
+		f := latestCalVer()
+		tag, err := ver.LatestTag(f.Regex(), changelog)
 		CheckIfError(err)
 
 		if tag == nil {
@@ -40,19 +40,16 @@ var nextTagCommand = &cobra.Command{
 	Use:   "next",
 	Short: "Output what the next calver tag will be",
 	Run: func(cmd *cobra.Command, args []string) {
-		f := loadFormat()
-		verifiedHash, err := ver.VerifyHash(hash)
+		cv := nextCalVerArgs()
+		tag, err := cv.Version(time.Now())
 		CheckIfError(err)
-		tag := f.Version(time.Now())
-		cv := colour.LightGreen.Sprintf(tag)
 
-		exists := ver.TagExists(tag)
-		if exists {
-			fmt.Printf("Tag '%s' already exists\n", cv)
-			return
+		if lean {
+			fmt.Println(tag)
+		} else {
+			fmt.Printf("Will create tag '%s' (hash %s)\n", colour.LightGreen.Sprintf(tag), hash)
 		}
 
-		fmt.Printf("Will create tag '%s' (hash %s)", cv, verifiedHash)
 	},
 }
 
@@ -60,8 +57,8 @@ var listTagCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Will list all CalVer tags matching the provided format",
 	Run: func(cmd *cobra.Command, args []string) {
-		f := loadFormat()
-		tags, err := ver.ListTags(f, limit, changelog)
+		f := latestCalVer()
+		tags, err := ver.ListTags(f.Regex(), limit, changelog)
 		CheckIfError(err)
 
 		if len(tags) == 0 {
@@ -79,23 +76,10 @@ var tagCmd = &cobra.Command{
 	Use:   "tag",
 	Short: "tag",
 	Run: func(cmd *cobra.Command, args []string) {
-		cf := loadFormat()
-		f, err := ver.NewCalVer(
-			ver.CalVerArgs{
-				Format:   cf,
-				Micro:    &micro,
-				Minor:    &minor,
-				Modifier: modifier,
-			})
-		CheckIfError(err)
+		cv := nextCalVerArgs()
 
-		if autoIncrement {
-			nextInc, err := ver.GetLatestAutoInc(f)
-			if err != nil {
-				fmt.Printf("could not find next increment: %s\n", err.Error())
-				os.Exit(1)
-			}
-			f.Modifier = f.Modifier + strconv.Itoa(nextInc)
+		if cv == nil {
+			CheckIfError(fmt.Errorf("error getting next tag"))
 		}
 
 		tag := ""
@@ -104,12 +88,12 @@ var tagCmd = &cobra.Command{
 		}
 
 		if tag == "" {
-			tag, _ = f.Version(time.Now())
+			tag, _ = cv.Version(time.Now())
 		}
 		commit, err := ver.TagNext(ver.TagArgs{
 			Hash: hash,
 			Push: push,
-			CV:   f,
+			CV:   cv,
 			Tag:  tag,
 		})
 		CheckIfError(err)
@@ -125,15 +109,7 @@ var retagCmd = &cobra.Command{
 	Use:   "retag",
 	Short: "retag",
 	Run: func(cmd *cobra.Command, args []string) {
-		cf := loadFormat()
-		f, err := ver.NewCalVer(
-			ver.CalVerArgs{
-				Format:   cf,
-				Micro:    &micro,
-				Minor:    &minor,
-				Modifier: modifier,
-			})
-		CheckIfError(err)
+		cv := latestCalVer()
 
 		tag := ""
 		if len(args) > 0 {
@@ -141,7 +117,7 @@ var retagCmd = &cobra.Command{
 		}
 
 		if tag == "" {
-			tag, _ = f.Version(time.Now())
+			tag, _ = cv.Version(time.Now())
 		}
 
 		exists := ver.TagExists(tag)
@@ -152,7 +128,7 @@ var retagCmd = &cobra.Command{
 		commit, err := ver.Retag(ver.TagArgs{
 			Hash: hash,
 			Push: push,
-			CV:   f,
+			CV:   cv,
 			Tag:  tag,
 		})
 		CheckIfError(err)
@@ -164,15 +140,7 @@ var untagCmd = &cobra.Command{
 	Use:   "untag",
 	Short: "untag",
 	Run: func(cmd *cobra.Command, args []string) {
-		cf := loadFormat()
-		f, err := ver.NewCalVer(
-			ver.CalVerArgs{
-				Format:   cf,
-				Micro:    &micro,
-				Minor:    &minor,
-				Modifier: modifier,
-			})
-		CheckIfError(err)
+		cv := nextCalVerArgs()
 
 		tag := ""
 		if len(args) > 0 {
@@ -180,7 +148,7 @@ var untagCmd = &cobra.Command{
 		}
 
 		if tag == "" {
-			tag, _ = f.Version(time.Now())
+			tag, _ = cv.Version(time.Now())
 		}
 
 		exists := ver.TagExists(tag)
@@ -188,10 +156,10 @@ var untagCmd = &cobra.Command{
 			CheckIfError(fmt.Errorf("tag '%s' does not exist", tag))
 		}
 
-		err = ver.Untag(ver.TagArgs{
+		err := ver.Untag(ver.TagArgs{
 			Hash: hash,
 			Push: push,
-			CV:   f,
+			CV:   cv,
 			Tag:  tag,
 		})
 		CheckIfError(err)
@@ -210,7 +178,7 @@ func init() {
 
 	rootCmd.AddCommand(tagCmd)
 	tagCmd.Flags().BoolVarP(&push, "push", "p", false, "Push tag after create")
-	tagCmd.Flags().BoolVarP(&autoIncrement, "auto-increment", "i", false, "Adds an auto-incremented modifier, based off previous latest release")
+	tagCmd.Flags().BoolVarP(&autoIncrementFlag, "auto-increment", "i", false, "Adds an auto-incremented modifier, based off previous latest release")
 	tagCmd.Flags().StringVar(&hash, "hash", "", "Override Hash")
 	tagCmd.Flags().BoolVarP(&lean, "lean", "l", false, "Output the version number only")
 
@@ -224,4 +192,6 @@ func init() {
 
 	rootCmd.AddCommand(nextTagCommand)
 	nextTagCommand.Flags().StringVar(&hash, "hash", "HEAD", "Override Hash")
+	nextTagCommand.Flags().BoolVarP(&lean, "lean", "l", false, "Output the version number only")
+	nextTagCommand.Flags().BoolVarP(&autoIncrementFlag, "auto-increment", "i", false, "Adds an auto-incremented modifier, based off previous latest release")
 }

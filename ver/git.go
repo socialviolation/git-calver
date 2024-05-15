@@ -7,40 +7,38 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"log"
 	"os/exec"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 )
 
-func GetRepoFormat() (*Format, error) {
+func GetRepoFormat() (*Format, bool, error) {
 	r, err := git.PlainOpen(".")
 	if err != nil {
-		return nil, fmt.Errorf("could not init repo at .: %w", err)
+		return nil, false, fmt.Errorf("could not init repo at .: %w", err)
 	}
 
 	conf, err := r.Config()
 	if err != nil {
-		return nil, fmt.Errorf("could not retrieve config: %w", err)
-	}
-	if err != nil {
-		return nil, err
+		return nil, false, fmt.Errorf("could not retrieve config: %w", err)
 	}
 
 	if !conf.Raw.HasSection("calver") {
-		return nil, fmt.Errorf("[calver] not set")
+		return nil, false, fmt.Errorf("[calver] not set")
 	}
 
 	val := conf.Raw.Section("calver").Option("format")
 	if val == "" {
-		return nil, fmt.Errorf("[calver].format not set")
+		return nil, false, fmt.Errorf("[calver].format not set")
 	}
 
 	f, err := NewFormat(val)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return f, nil
+	return f, strings.HasSuffix(val, "-AUTO"), nil
 }
 
 func SetRepoFormat(f *Format) error {
@@ -73,8 +71,8 @@ type TagArgs struct {
 	Tag  string
 }
 
-func LatestTag(format *Format, changelog bool) (*CalVerTagGroup, error) {
-	latestList, err := ListTags(format, 1, changelog)
+func LatestTag(reg *regexp.Regexp, changelog bool) (*CalVerTagGroup, error) {
+	latestList, err := ListTags(reg, 1, changelog)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +84,7 @@ func LatestTag(format *Format, changelog bool) (*CalVerTagGroup, error) {
 }
 
 func GetLatestAutoInc(cv *CalVer) (int, error) {
-	latest, err := LatestTag(cv.Format, false)
+	latest, err := LatestTag(cv.Regex(), false)
 	autoMod := 1
 	if err != nil {
 		return 0, fmt.Errorf("could not find latest tag with format: %s", cv.Format.String())
@@ -108,9 +106,11 @@ func GetLatestAutoInc(cv *CalVer) (int, error) {
 
 		foundIncableV = true
 		latestModBits := strings.Split(tag, "-")
-		if len(latestModBits) == 1 {
+		if len(latestModBits) <= 1 {
 			autoMod = 1
+			break
 		}
+
 		latestMod := latestModBits[1]
 		if strings.HasPrefix(latestMod, cv.Modifier) {
 			incPartMod := strings.Replace(latestMod, cv.Modifier, "", 1)
@@ -129,7 +129,7 @@ func GetLatestAutoInc(cv *CalVer) (int, error) {
 	return autoMod, nil
 }
 
-func ListTags(format *Format, limit int, changelog bool) ([]*CalVerTagGroup, error) {
+func ListTags(reg *regexp.Regexp, limit int, changelog bool) ([]*CalVerTagGroup, error) {
 	r, err := git.PlainOpen(".")
 	if err != nil {
 		return nil, fmt.Errorf("could not init repo at .: %w", err)
@@ -139,13 +139,12 @@ func ListTags(format *Format, limit int, changelog bool) ([]*CalVerTagGroup, err
 	if err != nil {
 		return nil, fmt.Errorf("could not find ags: %w", err)
 	}
-	regex := format.Regex()
 
 	tagMap := make(map[string]*CalVerTagGroup)
 	hashes := make([]string, 0)
 	err = refs.ForEach(func(tag *plumbing.Reference) error {
 		short := tag.Name().Short()
-		if !regex.Match([]byte(short)) {
+		if !reg.Match([]byte(short)) {
 			return nil
 		}
 		co, _ := getCommitByTag(r, string(tag.Name()))
@@ -433,10 +432,18 @@ func setTag(r *git.Repository, tag string, co *object.Commit) (bool, error) {
 		}
 	}
 
-	_, err := r.CreateTag(tag, co.Hash, &git.CreateTagOptions{
-		Tagger:  &co.Author,
-		Message: tag,
-	})
+	gitPathCmd := exec.Command("which", "git")
+	gitPath, err := gitPathCmd.Output()
+	if err != nil {
+		return false, fmt.Errorf("could not find git on host system, push is not supported")
+	}
+
+	gitCmd := strings.Replace(string(gitPath), "\n", "", -1)
+	cmd := exec.Command(gitCmd, "tag", tag)
+	_, err = cmd.Output()
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 
 	if err != nil {
 		fmt.Printf("create tag error: %s\n", err)

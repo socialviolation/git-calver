@@ -68,6 +68,11 @@ func TestNewFormat(t *testing.T) {
 			out:       Format{Major: segmentFullYear, Minor: segmentShortMonth, Micro: segmentShortDay},
 			wantError: false,
 		},
+		{
+			fmt:       "YYYY.MM.DD-AUTO",
+			out:       Format{Major: segmentFullYear, Minor: segmentShortMonth, Micro: segmentShortDay},
+			wantError: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -258,6 +263,15 @@ func TestCalVerVersion(t *testing.T) {
 			},
 			timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 			errMsg:    "micro version required for format",
+		},
+		{
+			args: CalVerArgs{
+				RawFormat:     "YY.0M-AUTO",
+				AutoIncrement: true,
+				Modifier:      "2",
+			},
+			out:       "24.01-2",
+			timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 		},
 	}
 

@@ -3,17 +3,20 @@ package ver
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
 
 type CalVer struct {
-	Format   *Format
-	Minor    uint
-	Micro    uint
-	Modifier string
-	microSet bool
-	minorSet bool
+	Format        *Format
+	Minor         uint
+	Micro         uint
+	AutoIncrement bool
+	Increment     uint
+	Modifier      string
+	microSet      bool
+	minorSet      bool
 }
 
 type Format struct {
@@ -47,16 +50,23 @@ func (f *Format) Version(t time.Time) string {
 	return strings.Join(bits, ".")
 }
 
-func (f *Format) Regex() *regexp.Regexp {
-	if f.Minor == segmentEmpty {
-		r, _ := regexp.Compile(fmt.Sprintf(`^%s(-(\w+)){0,1}$`, f.Major.Regex()))
+func (c *CalVer) Regex() *regexp.Regexp {
+	mod := ""
+	if c.AutoIncrement {
+		mod = `-\d+`
+	} else if c.Modifier != "" {
+		mod = fmt.Sprintf(`-%s`, c.Modifier)
+	}
+
+	if c.Format.Minor == segmentEmpty {
+		r, _ := regexp.Compile(fmt.Sprintf(`^%s(-(\w+)){0,1}%s$`, c.Format.Major.Regex(), mod))
 		return r
 	}
-	if f.Micro == segmentEmpty {
-		r, _ := regexp.Compile(fmt.Sprintf(`^%s\.%s(-\w+){0,1}$`, f.Major.Regex(), f.Minor.Regex()))
+	if c.Format.Micro == segmentEmpty {
+		r, _ := regexp.Compile(fmt.Sprintf(`^%s\.%s(-\w+){0,1}%s$`, c.Format.Major.Regex(), c.Format.Minor.Regex(), mod))
 		return r
 	}
-	r, _ := regexp.Compile(fmt.Sprintf(`^%s\.%s\.%s(-\w+){0,1}$`, f.Major.Regex(), f.Minor.Regex(), f.Micro.Regex()))
+	r, _ := regexp.Compile(fmt.Sprintf(`^%s\.%s\.%s(-\w+){0,1}%s$`, c.Format.Major.Regex(), c.Format.Minor.Regex(), c.Format.Micro.Regex(), mod))
 	return r
 }
 
@@ -69,30 +79,31 @@ func (f *Format) NeedsMicro() bool {
 }
 
 const (
-	// FullYear notation for CalVer - 2006, 2016, 2106
+	// FullYear notation - 2006, 2016, 2106
 	FullYear = "YYYY"
-	// ShortYear notation for CalVer - 6, 16, 106
+	// ShortYear notation - 6, 16, 106
 	ShortYear = "YY"
-	// PaddedYear notation for CalVer - 06, 16, 106
+	// PaddedYear notation - 06, 16, 106
 	PaddedYear = "0Y"
-	// ShortMonth notation for CalVer - 1, 2 ... 11, 12
+	// ShortMonth notation - 1, 2 ... 11, 12
 	ShortMonth = "MM"
-	// PaddedMonth notation for CalVer - 01, 02 ... 11, 12
+	// PaddedMonth notation - 01, 02 ... 11, 12
 	PaddedMonth = "0M"
-	// ShortWeek notation for CalVer - 1, 2, 33, 52
+	// ShortWeek notation - 1, 2, 33, 52
 	ShortWeek = "WW"
-	// PaddedWeek notation for CalVer - 01, 02, 33, 52
+	// PaddedWeek notation - 01, 02, 33, 52
 	PaddedWeek = "0W"
-	// ShortDay notation for CalVer - 1, 2 ... 30, 31
+	// ShortDay notation - 1, 2 ... 30, 31
 	ShortDay = "DD"
-	// PaddedDay notation for CalVer - 01, 02 ... 30, 31
+	// PaddedDay notation - 01, 02 ... 30, 31
 	PaddedDay = "0D"
 
 	Minor = "MINOR"
 	Micro = "MICRO"
+	Auto  = "AUTO"
 )
 
-var ValidSegments = [11]string{
+var ValidSegments = [12]string{
 	FullYear,
 	ShortYear,
 	PaddedYear,
@@ -104,9 +115,10 @@ var ValidSegments = [11]string{
 	PaddedDay,
 	Minor,
 	Micro,
+	Auto,
 }
 
-type segment int
+type segment uint
 
 const (
 	segmentEmpty segment = iota
@@ -121,6 +133,7 @@ const (
 	segmentPaddedDay
 	segmentMinor
 	segmentMicro
+	segmentAuto
 )
 
 func (s segment) String() string {
@@ -147,6 +160,8 @@ func (s segment) String() string {
 		return Minor
 	case segmentMicro:
 		return Micro
+	case segmentAuto:
+		return Auto
 	case segmentEmpty:
 		return ""
 	default:
@@ -178,6 +193,8 @@ func (s segment) Regex() string {
 		return Minor
 	case segmentMicro:
 		return Micro
+	case segmentAuto:
+		return "\b(A)|\\d+)\b"
 	case segmentEmpty:
 		return ""
 	default:
@@ -209,6 +226,8 @@ func fmtToSegment(format string) (segment, error) {
 		return segmentMinor, nil
 	case Micro:
 		return segmentMicro, nil
+	case Auto:
+		return segmentAuto, nil
 	default:
 		return segmentEmpty, fmt.Errorf("invalid format segment: %s", format)
 	}
@@ -253,13 +272,20 @@ func (s segment) conv(t time.Time) string {
 		return ""
 	case segmentMicro:
 		return ""
+	case segmentAuto:
+		return ""
 	default:
 		return t.Format(s.pattern())
 	}
 }
 
 func NewFormat(raw string) (*Format, error) {
-	segs := strings.Split(raw, ".")
+	calBit := strings.Split(raw, "-")
+	if len(calBit) < 1 {
+		return nil, fmt.Errorf("requires min 2 segments in format: %s", raw)
+	}
+
+	segs := strings.Split(calBit[0], ".")
 	if len(segs) < 2 {
 		return nil, fmt.Errorf("requires min 2 segments in format: %s", raw)
 	}
@@ -286,12 +312,14 @@ func NewFormat(raw string) (*Format, error) {
 }
 
 type CalVerArgs struct {
-	Format    *Format
-	RawFormat string
-	Minor     *uint
-	Micro     *uint
-	Modifier  string
-	DryRun    bool
+	Format        *Format
+	RawFormat     string
+	Minor         *uint
+	Micro         *uint
+	Modifier      string
+	DryRun        bool
+	AutoIncrement bool
+	Hash          string
 }
 
 func (c *CalVerArgs) String() string {
@@ -300,8 +328,9 @@ func (c *CalVerArgs) String() string {
 
 func NewCalVer(a CalVerArgs) (*CalVer, error) {
 	c := &CalVer{
-		Format:   a.Format,
-		Modifier: a.Modifier,
+		Format:        a.Format,
+		Modifier:      a.Modifier,
+		AutoIncrement: a.AutoIncrement,
 	}
 
 	if c.Format == nil {
@@ -319,6 +348,22 @@ func NewCalVer(a CalVerArgs) (*CalVer, error) {
 	if a.Minor != nil {
 		c.Minor = *a.Minor
 		c.microSet = true
+	}
+
+	return c, nil
+}
+
+func NextCalVer(a CalVerArgs) (*CalVer, error) {
+	c, err := NewCalVer(a)
+	if err != nil {
+		return nil, err
+	}
+	if c.AutoIncrement {
+		nextInc, err := GetLatestAutoInc(c)
+		if err != nil {
+			return nil, fmt.Errorf("could not find next increment: %s\n", err.Error())
+		}
+		c.Modifier = c.Modifier + strconv.Itoa(nextInc)
 	}
 
 	return c, nil

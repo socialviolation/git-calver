@@ -10,9 +10,13 @@ var formatGetCommand = &cobra.Command{
 	Use:   "format",
 	Short: "Get format from .gitconfig",
 	Run: func(cmd *cobra.Command, args []string) {
-		f, err := ver.GetRepoFormat()
+		f, a, err := ver.GetRepoFormat()
 		CheckIfError(err)
 
+		if a {
+			fmt.Println(f.String() + "-[auto-increment]")
+			return
+		}
 		fmt.Println(f.String())
 	},
 }
