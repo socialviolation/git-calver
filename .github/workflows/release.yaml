@@ -15,6 +15,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           goarch: "386"
           goos: linux
+          retry: 5
+          overwrite: true
   release-linux-amd64:
     name: release linux/amd64
     runs-on: ubuntu-latest
@@ -26,6 +28,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           goarch: amd64
           goos: linux
+          retry: 5
+          overwrite: true
   release-linux-arm:
     name: release linux/386
     runs-on: ubuntu-latest
@@ -37,6 +41,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           goarch: "arm"
           goos: linux
+          retry: 5
+          overwrite: true
   release-linux-arm64:
     name: release linux/amd64
     runs-on: ubuntu-latest
@@ -48,6 +54,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           goarch: arm64
           goos: linux
+          retry: 5
+          overwrite: true
   release-darwin-amd64:
     name: release darwin/amd64
     runs-on: ubuntu-latest
@@ -59,3 +67,5 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           goarch: amd64
           goos: darwin
+          retry: 5
+          overwrite: true
