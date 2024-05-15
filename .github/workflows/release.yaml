@@ -1,87 +1,63 @@
-on: release
+on:
+  release: {}
+  push:
+    branches:
+      - 'feature/publisher'
+
 name: Build Release
 jobs:
   release-linux-386:
     name: release linux/386
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v4
       - name: compile and release
-        uses: ngs/go-release.action@v1.0.1
+        uses: wangyoucao577/go-release-action@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GOARCH: "386"
-          GOOS: linux
-          EXTRA_FILES: "LICENSE"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          goarch: "386"
+          goos: linux
   release-linux-amd64:
     name: release linux/amd64
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v4
       - name: compile and release
-        uses: ngs/go-release.action@v1.0.1
+        uses: wangyoucao577/go-release-action@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GOARCH: amd64
-          GOOS: linux
-          EXTRA_FILES: "LICENSE"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          goarch: amd64
+          goos: linux
   release-linux-arm:
     name: release linux/386
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v4
       - name: compile and release
-        uses: ngs/go-release.action@v1.0.1
+        uses: wangyoucao577/go-release-action@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GOARCH: "arm"
-          GOOS: linux
-          EXTRA_FILES: "LICENSE"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          goarch: "arm"
+          goos: linux
   release-linux-arm64:
     name: release linux/amd64
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v4
       - name: compile and release
-        uses: ngs/go-release.action@v1.0.1
+        uses: wangyoucao577/go-release-action@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GOARCH: arm64
-          GOOS: linux
-          EXTRA_FILES: "LICENSE"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          goarch: arm64
+          goos: linux
   release-darwin-amd64:
     name: release darwin/amd64
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v4
       - name: compile and release
-        uses: ngs/go-release.action@v1.0.1
+        uses: wangyoucao577/go-release-action@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GOARCH: amd64
-          GOOS: darwin
-          EXTRA_FILES: "LICENSE"
-  release-windows-386:
-    name: release windows/386
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@master
-      - name: compile and release
-        uses: ngs/go-release.action@v1.0.1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GOARCH: "386"
-          GOOS: windows
-          EXTRA_FILES: "LICENSE"
-  release-windows-amd64:
-    name: release windows/amd64
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@master
-      - name: compile and release
-        uses: ngs/go-release.action@v1.0.1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GOARCH: amd64
-          GOOS: windows
-          EXTRA_FILES: "LICENSE"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          goarch: amd64
+          goos: darwin
