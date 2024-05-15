@@ -84,8 +84,8 @@ PaddedWeek = "0W"
 ShortDay = "DD"
 // PaddedDay notation - 01, 02 ... 30, 31
 PaddedDay = "0D"
-// Auto Increment notation - `-A` 
-Auto = "-A"
+// Auto Increment notation - `-AUTO` 
+Auto = "-AUTO"
 
 Minor = "MINOR"
 Micro = "MICRO"
