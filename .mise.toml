@@ -2,7 +2,7 @@
 BINARY="git-calver"
 
 [tools]
-go = "1.22.0"
+go = "1.22"
 
 [settings]
 experimental = true
