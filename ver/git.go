@@ -51,9 +51,6 @@ func SetRepoFormat(f *Format) error {
 	if err != nil {
 		return fmt.Errorf("could not retrieve config: %w", err)
 	}
-	if err != nil {
-		return err
-	}
 
 	conf.Raw.SetOption("calver", "", "format", f.String())
 	err = r.SetConfig(conf)
@@ -141,7 +138,8 @@ func ListTags(reg *regexp.Regexp, limit int, changelog bool) ([]*CalVerTagGroup,
 	}
 
 	tagMap := make(map[string]*CalVerTagGroup)
-	hashes := make([]string, 0)
+	tags := make([]string, 0)
+	//hashes := make([]string, 0)
 	err = refs.ForEach(func(tag *plumbing.Reference) error {
 		short := tag.Name().Short()
 		if !reg.Match([]byte(short)) {
@@ -161,12 +159,13 @@ func ListTags(reg *regexp.Regexp, limit int, changelog bool) ([]*CalVerTagGroup,
 			}
 			return false
 		}
-		if !inc(hashes, hash) {
-			hashes = append(hashes, hash)
+		if !inc(tags, short) {
+			tags = append(tags, short)
 		}
+		tags = append(tags, short)
 
-		if tagMap[hash] == nil {
-			tagMap[hash] = &CalVerTagGroup{
+		if tagMap[short] == nil {
+			tagMap[short] = &CalVerTagGroup{
 				Hash:      hash,
 				Commit:    co,
 				When:      co.Author.When,
@@ -177,23 +176,23 @@ func ListTags(reg *regexp.Regexp, limit int, changelog bool) ([]*CalVerTagGroup,
 			return nil
 		}
 
-		tagMap[hash].Tags = append(tagMap[hash].Tags, short)
-		tagMap[hash].Refs = append(tagMap[hash].Refs, tag)
+		tagMap[short].Tags = append(tagMap[short].Tags, short)
+		tagMap[short].Refs = append(tagMap[short].Refs, tag)
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	sort.Slice(hashes, func(i, j int) bool {
-		return tagMap[hashes[j]].Time().Before(tagMap[hashes[i]].Time())
+	sort.Slice(tags, func(i, j int) bool {
+		return tags[j] < tags[i]
 	})
 
 	if changelog {
 		changeLimit := 20
-		for i, hash := range hashes {
+		for i, hash := range tags {
 			since := time.Time{}
-			if i < len(hashes)-2 {
-				since = tagMap[hashes[i+1]].Commit.Author.When.Add(time.Second * 1)
+			if i < len(tags)-2 {
+				since = tagMap[tags[i+1]].Commit.Author.When.Add(time.Second * 1)
 			}
 
 			logs, _ := r.Log(&git.LogOptions{
@@ -226,14 +225,14 @@ func ListTags(reg *regexp.Regexp, limit int, changelog bool) ([]*CalVerTagGroup,
 	}
 
 	results := make([]*CalVerTagGroup, 0)
-	for i, hash := range hashes {
+	for i, tag := range tags {
 		if i == 0 {
-			tagMap[hash].Latest = true
+			tagMap[tag].Latest = true
 		}
 		if i >= limit {
 			break
 		}
-		results = append(results, tagMap[hash])
+		results = append(results, tagMap[tag])
 	}
 
 	return results, nil

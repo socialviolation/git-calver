@@ -51,22 +51,20 @@ func (f *Format) Version(t time.Time) string {
 }
 
 func (c *CalVer) Regex() *regexp.Regexp {
-	mod := ""
-	if c.AutoIncrement {
-		mod = `-\d+`
-	} else if c.Modifier != "" {
-		mod = fmt.Sprintf(`-%s`, c.Modifier)
+	mod := "0,1"
+	if c.AutoIncrement || c.Modifier != "" {
+		mod = "1"
 	}
 
 	if c.Format.Minor == segmentEmpty {
-		r, _ := regexp.Compile(fmt.Sprintf(`^%s(-(\w+)){0,1}%s$`, c.Format.Major.Regex(), mod))
+		r, _ := regexp.Compile(fmt.Sprintf(`^%s(-(\w+)){%s}$`, c.Format.Major.Regex(), mod))
 		return r
 	}
 	if c.Format.Micro == segmentEmpty {
-		r, _ := regexp.Compile(fmt.Sprintf(`^%s\.%s(-\w+){0,1}%s$`, c.Format.Major.Regex(), c.Format.Minor.Regex(), mod))
+		r, _ := regexp.Compile(fmt.Sprintf(`^%s\.%s(-\w+){%s}$`, c.Format.Major.Regex(), c.Format.Minor.Regex(), mod))
 		return r
 	}
-	r, _ := regexp.Compile(fmt.Sprintf(`^%s\.%s\.%s(-\w+){0,1}%s$`, c.Format.Major.Regex(), c.Format.Minor.Regex(), c.Format.Micro.Regex(), mod))
+	r, _ := regexp.Compile(fmt.Sprintf(`^%s\.%s\.%s(-\w+){%s}$`, c.Format.Major.Regex(), c.Format.Minor.Regex(), c.Format.Micro.Regex(), mod))
 	return r
 }
 
