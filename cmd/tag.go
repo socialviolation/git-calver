@@ -16,7 +16,7 @@ var (
 	changelog         bool
 	autoIncrement     bool
 	autoIncrementFlag bool
-	lean              bool
+	short             bool
 )
 
 var latestTagCmd = &cobra.Command{
@@ -32,7 +32,7 @@ var latestTagCmd = &cobra.Command{
 			return
 		}
 
-		tag.Print(os.Stdout, noColour)
+		tag.Print(os.Stdout, noColour, short)
 	},
 }
 
@@ -44,7 +44,7 @@ var nextTagCommand = &cobra.Command{
 		tag, err := cv.Version(time.Now())
 		CheckIfError(err)
 
-		if lean {
+		if short {
 			fmt.Println(tag)
 		} else {
 			fmt.Printf("Will create tag '%s' (hash %s)\n", colour.LightGreen.Sprintf(tag), hash)
@@ -67,7 +67,7 @@ var listTagCmd = &cobra.Command{
 		}
 
 		for _, tag := range tags {
-			tag.Print(os.Stdout, noColour)
+			tag.Print(os.Stdout, noColour, short)
 		}
 	},
 }
@@ -97,7 +97,7 @@ var tagCmd = &cobra.Command{
 			Tag:  tag,
 		})
 		CheckIfError(err)
-		if lean {
+		if short {
 			fmt.Println(tag)
 		} else {
 			fmt.Printf("Created tag '%s' (hash %s)\n", tag, commit)
@@ -171,16 +171,18 @@ func init() {
 	listTagCmd.Flags().BoolVar(&noColour, "no-colour", false, "Disable colour output")
 	listTagCmd.Flags().BoolVar(&changelog, "changeLog", true, "Include changelog")
 	listTagCmd.Flags().IntVarP(&limit, "limit", "l", 5, "Limit number of results (based on hashes)")
+	listTagCmd.Flags().BoolVarP(&short, "short", "s", false, "Output the version number only")
 
 	rootCmd.AddCommand(latestTagCmd)
 	latestTagCmd.Flags().BoolVar(&noColour, "no-colour", false, "Disable colour output")
 	latestTagCmd.Flags().BoolVar(&changelog, "changeLog", true, "Include changelog")
+	latestTagCmd.Flags().BoolVarP(&short, "short", "s", false, "Output the version number only")
 
 	rootCmd.AddCommand(tagCmd)
 	tagCmd.Flags().BoolVarP(&push, "push", "p", false, "Push tag after create")
 	tagCmd.Flags().BoolVarP(&autoIncrementFlag, "auto-increment", "i", false, "Adds an auto-incremented modifier, based off previous latest release")
 	tagCmd.Flags().StringVar(&hash, "hash", "", "Override Hash")
-	tagCmd.Flags().BoolVarP(&lean, "lean", "l", false, "Output the version number only")
+	tagCmd.Flags().BoolVarP(&short, "short", "s", false, "Output the version number only")
 
 	rootCmd.AddCommand(retagCmd)
 	retagCmd.Flags().BoolVarP(&push, "push", "p", false, "Push tag after update")
@@ -192,6 +194,6 @@ func init() {
 
 	rootCmd.AddCommand(nextTagCommand)
 	nextTagCommand.Flags().StringVar(&hash, "hash", "HEAD", "Override Hash")
-	nextTagCommand.Flags().BoolVarP(&lean, "lean", "l", false, "Output the version number only")
+	nextTagCommand.Flags().BoolVarP(&short, "short", "s", false, "Output the version number only")
 	nextTagCommand.Flags().BoolVarP(&autoIncrementFlag, "auto-increment", "i", false, "Adds an auto-incremented modifier, based off previous latest release")
 }

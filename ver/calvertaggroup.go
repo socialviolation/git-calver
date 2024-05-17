@@ -18,6 +18,7 @@ type CalVerTagGroup struct {
 	Commit    *object.Commit
 	Refs      []*plumbing.Reference
 	Latest    bool
+	LatestTag string
 	ChangeLog []*object.Commit
 }
 
@@ -41,10 +42,16 @@ func (cvt *CalVerTagGroup) printTags() string {
 	return result
 }
 
-func (cvt *CalVerTagGroup) Print(w io.Writer, noColour bool) {
+func (cvt *CalVerTagGroup) Print(w io.Writer, noColour bool, lean bool) {
 	if noColour {
 		colour.Disable()
 	}
+
+	if lean {
+		_, _ = w.Write([]byte(cvt.LatestTag + "\n"))
+		return
+	}
+
 	headline := colour.Yellow.Sprint(cvt.Hash) + " - "
 	if cvt.Latest {
 		headline += colour.HEX("#af5fff").Sprint(cvt.printTags())

@@ -228,6 +228,7 @@ func ListTags(reg *regexp.Regexp, limit int, changelog bool) ([]*CalVerTagGroup,
 	for i, tag := range tags {
 		if i == 0 {
 			tagMap[tag].Latest = true
+			tagMap[tag].LatestTag = tag
 		}
 		if i >= limit {
 			break
