@@ -183,7 +183,22 @@ func ListTags(reg *regexp.Regexp, limit int, changelog bool) ([]*CalVerTagGroup,
 	if err != nil {
 		return nil, err
 	}
+
 	sort.Slice(tags, func(i, j int) bool {
+		a := tags[i]
+		b := tags[j]
+		aBits := strings.Split(a, "-")
+		bBits := strings.Split(b, "-")
+		if aBits[0] != bBits[0] {
+			return bBits[0] < aBits[0]
+		}
+
+		if aMod, err := strconv.Atoi(aBits[1]); err == nil {
+			if bMod, err := strconv.Atoi(bBits[1]); err == nil {
+				return bMod < aMod
+			}
+		}
+
 		return tags[j] < tags[i]
 	})
 
