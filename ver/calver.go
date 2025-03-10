@@ -359,7 +359,7 @@ func NextCalVer(a CalVerArgs) (*CalVer, error) {
 	if c.AutoIncrement {
 		nextInc, err := GetLatestAutoInc(c)
 		if err != nil {
-			return nil, fmt.Errorf("could not find next increment: %s\n", err.Error())
+			nextInc = 1
 		}
 		c.Modifier = c.Modifier + strconv.Itoa(nextInc)
 	}

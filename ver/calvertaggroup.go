@@ -2,13 +2,14 @@ package ver
 
 import (
 	"fmt"
+	"io"
+	"strings"
+	"time"
+
 	pretty "github.com/andanhm/go-prettytime"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	colour "github.com/gookit/color"
-	"io"
-	"strings"
-	"time"
 )
 
 type CalVerTagGroup struct {
@@ -63,7 +64,7 @@ func (cvt *CalVerTagGroup) Print(w io.Writer, noColour bool, lean bool) {
 
 	changeLog := "CHANGELOG:"
 
-	for _, commit := range cvt.ChangeLog {
+	for i, commit := range cvt.ChangeLog {
 		b := colour.Red.Sprint("*")
 		when := colour.Gray.Sprint(commit.Author.When.Format("2006-01-02 15:04"))
 		hash := colour.Yellow.Sprint(commit.Hash.String()[:7])
@@ -73,6 +74,10 @@ func (cvt *CalVerTagGroup) Print(w io.Writer, noColour bool, lean bool) {
 		line := fmt.Sprintf("\t%s %s  %s  %s  %s", b, when, hash, msg, who)
 		line = strings.Replace(line, "\n", "", -1)
 		changeLog += "\n" + line
+		if i > 10 {
+			changeLog += "\n\t..."
+			break
+		}
 	}
 
 	result := fmt.Sprintf("\n%s\n%s\n%s\n", headline, subtitle, changeLog)

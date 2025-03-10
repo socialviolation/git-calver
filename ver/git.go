@@ -2,9 +2,6 @@ package ver
 
 import (
 	"fmt"
-	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/go-git/go-git/v5/plumbing/object"
 	"log"
 	"os/exec"
 	"regexp"
@@ -12,6 +9,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
 func GetRepoFormat() (*Format, bool, error) {
@@ -193,9 +194,11 @@ func ListTags(reg *regexp.Regexp, limit int, changelog bool) ([]*CalVerTagGroup,
 			return bBits[0] < aBits[0]
 		}
 
-		if aMod, err := strconv.Atoi(aBits[1]); err == nil {
-			if bMod, err := strconv.Atoi(bBits[1]); err == nil {
-				return bMod < aMod
+		if len(aBits) > 1 {
+			if aMod, err := strconv.Atoi(aBits[1]); err == nil {
+				if bMod, err := strconv.Atoi(bBits[1]); err == nil {
+					return bMod < aMod
+				}
 			}
 		}
 
