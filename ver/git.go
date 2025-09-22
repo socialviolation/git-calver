@@ -1,6 +1,8 @@
 package ver
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"log"
 	"os/exec"
@@ -15,8 +17,29 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
+var ErrNotInRepo = errors.New("no repo found")
+
+// getGitRootDir executes `git rev-parse --show-toplevel` and returns the root directory as a string
+func getGitRootDir() (string, error) {
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+
+	var out bytes.Buffer
+	cmd.Stdout = &out
+
+	err := cmd.Run()
+	if err != nil {
+		return "", err
+	}
+
+	// Trim any trailing newline or spaces
+	return strings.TrimSpace(out.String()), nil
+}
 func GetRepoFormat() (*Format, bool, error) {
-	r, err := git.PlainOpen(".")
+	p, err := getGitRootDir()
+	if err != nil {
+		return nil, false, ErrNotInRepo
+	}
+	r, err := git.PlainOpen(p)
 	if err != nil {
 		return nil, false, fmt.Errorf("could not init repo at .: %w", err)
 	}
@@ -43,7 +66,11 @@ func GetRepoFormat() (*Format, bool, error) {
 }
 
 func SetRepoFormat(f *Format) error {
-	r, err := git.PlainOpen(".")
+	p, err := getGitRootDir()
+	if err != nil {
+		return ErrNotInRepo
+	}
+	r, err := git.PlainOpen(p)
 	if err != nil {
 		return fmt.Errorf("could not init repo at .: %w", err)
 	}
@@ -82,10 +109,10 @@ func LatestTag(reg *regexp.Regexp, changelog bool) (*CalVerTagGroup, error) {
 }
 
 func GetLatestAutoInc(cv *CalVer) (int, error) {
-	latest, err := LatestTag(cv.Regex(), false)
-	autoMod := 1
+	// Get all tags that match the format, not just the latest group
+	allTags, err := ListTags(cv.Regex(), 100, false) // Get more tags to search through
 	if err != nil {
-		return 0, fmt.Errorf("could not find latest tag with format: %s", cv.Format.String())
+		return 1, nil // If no tags found, start at 1
 	}
 
 	nextTagStr, err := cv.Version(time.Now())
@@ -94,41 +121,51 @@ func GetLatestAutoInc(cv *CalVer) (int, error) {
 	}
 
 	nextCalVer := strings.Split(nextTagStr, "-")[0]
-	foundIncableV := false
+	maxInc := 0
+	foundMatchingTag := false
 
-	for _, tag := range latest.Tags {
-		if !strings.HasPrefix(tag, nextCalVer) {
-			// No matching tag found to increment
-			continue
-		}
-
-		foundIncableV = true
-		latestModBits := strings.Split(tag, "-")
-		if len(latestModBits) <= 1 {
-			autoMod = 1
-			break
-		}
-
-		latestMod := latestModBits[1]
-		if strings.HasPrefix(latestMod, cv.Modifier) {
-			incPartMod := strings.Replace(latestMod, cv.Modifier, "", 1)
-			oldInc, err := strconv.Atoi(incPartMod)
-			if err != nil {
+	// Search through all tag groups for matching versions
+	for _, tagGroup := range allTags {
+		for _, tag := range tagGroup.Tags {
+			if !strings.HasPrefix(tag, nextCalVer) {
+				// No matching tag found to increment
 				continue
 			}
-			autoMod = oldInc + 1
+
+			latestModBits := strings.Split(tag, "-")
+			if len(latestModBits) <= 1 {
+				// No modifier part
+				continue
+			}
+
+			latestMod := latestModBits[1]
+			if strings.HasPrefix(latestMod, cv.Modifier) {
+				foundMatchingTag = true
+				incPartMod := strings.Replace(latestMod, cv.Modifier, "", 1)
+				oldInc, err := strconv.Atoi(incPartMod)
+				if err != nil {
+					continue
+				}
+				if oldInc > maxInc {
+					maxInc = oldInc
+				}
+			}
 		}
 	}
 
-	if !foundIncableV {
-		return 1, nil
+	if foundMatchingTag {
+		return maxInc + 1, nil
 	}
 
-	return autoMod, nil
+	return 1, nil
 }
 
 func ListTags(reg *regexp.Regexp, limit int, changelog bool) ([]*CalVerTagGroup, error) {
-	r, err := git.PlainOpen(".")
+	p, err := getGitRootDir()
+	if err != nil {
+		return nil, ErrNotInRepo
+	}
+	r, err := git.PlainOpen(p)
 	if err != nil {
 		return nil, fmt.Errorf("could not init repo at .: %w", err)
 	}
@@ -258,7 +295,11 @@ func ListTags(reg *regexp.Regexp, limit int, changelog bool) ([]*CalVerTagGroup,
 }
 
 func VerifyHash(hash string) (string, error) {
-	r, err := git.PlainOpen(".")
+	p, err := getGitRootDir()
+	if err != nil {
+		return "", ErrNotInRepo
+	}
+	r, err := git.PlainOpen(p)
 	if err != nil {
 		return "", fmt.Errorf("could not init repo at .: %w", err)
 	}
@@ -281,7 +322,11 @@ func VerifyHash(hash string) (string, error) {
 }
 
 func TagNext(args TagArgs) (string, error) {
-	r, err := git.PlainOpen(".")
+	p, err := getGitRootDir()
+	if err != nil {
+		return "", ErrNotInRepo
+	}
+	r, err := git.PlainOpen(p)
 	if err != nil {
 		return "", fmt.Errorf("could not init repo at .: %w", err)
 	}
@@ -327,7 +372,11 @@ func TagNext(args TagArgs) (string, error) {
 }
 
 func Untag(args TagArgs) error {
-	r, err := git.PlainOpen(".")
+	p, err := getGitRootDir()
+	if err != nil {
+		return ErrNotInRepo
+	}
+	r, err := git.PlainOpen(p)
 	if err != nil {
 		return fmt.Errorf("could not init repo at .: %w", err)
 	}
@@ -356,7 +405,11 @@ func Retag(args TagArgs) (string, error) {
 }
 
 func TagExists(tag string) bool {
-	r, err := git.PlainOpen(".")
+	p, err := getGitRootDir()
+	if err != nil {
+		return false
+	}
+	r, err := git.PlainOpen(p)
 	if err != nil {
 		return false
 	}
@@ -394,7 +447,11 @@ func getCommitByTag(r *git.Repository, tag string) (*object.Commit, error) {
 }
 
 func tagHash(tag string) string {
-	r, err := git.PlainOpen(".")
+	p, err := getGitRootDir()
+	if err != nil {
+		return ""
+	}
+	r, err := git.PlainOpen(p)
 	if err != nil {
 		return ""
 	}
