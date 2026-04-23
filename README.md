@@ -5,7 +5,7 @@
 ## Installation
 
 ```bash
-go install github.com/socialviolation/git-calver
+go install github.com/socialviolation/git-calver@latest
 ```
 
 ## Set up
